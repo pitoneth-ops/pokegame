@@ -1,8 +1,7 @@
 import axios from "axios";
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "/api"
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const api = axios.create({ baseURL: (import.meta as any).env?.VITE_API_URL ?? "/api" });
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
 
