@@ -20,10 +20,10 @@ const GYM_LEADERS = [
 ];
 
 const ELITE4 = [
-  { name: "Lorelei", type: "Ice",     emoji: "🧊", sprite: `${PS}/lorelei.png`,  desc: "Ice-type specialist who freezes opponents with relentless cold." },
-  { name: "Bruno",   type: "Fighting",emoji: "🥊", sprite: `${PS}/bruno.png`,    desc: "Tireless fighter who trains body and mind to their limits." },
-  { name: "Agatha",  type: "Ghost",   emoji: "👻", sprite: `${PS}/agatha.png`,   desc: "Elder master who commands Ghost Pokémon with ancient wisdom." },
-  { name: "Lance",   type: "Dragon",  emoji: "🐉", sprite: `${PS}/lance.png`,    desc: "The Dragon Master — the mightiest of the Elite Four." },
+  { name: "Lorelei", type: "Ice",     emoji: "🧊", srcs: [`${PS}/lorelei.png`, `${PS}/prima.png`], desc: "Ice-type specialist who freezes opponents with relentless cold." },
+  { name: "Bruno",   type: "Fighting",emoji: "🥊", srcs: [`${PS}/bruno.png`],                     desc: "Tireless fighter who trains body and mind to their limits." },
+  { name: "Agatha",  type: "Ghost",   emoji: "👻", srcs: [`${PS}/agatha.png`, `${PS}/agatha-gen3.png`], desc: "Elder master who commands Ghost Pokémon with ancient wisdom." },
+  { name: "Lance",   type: "Dragon",  emoji: "🐉", srcs: [`${PS}/lance.png`],                     desc: "The Dragon Master — the mightiest of the Elite Four." },
 ];
 
 const TYPE_BG: Record<string, string> = {
@@ -72,16 +72,28 @@ function getMatchup(attacker: string, defender: string): number {
   return 0.5;
 }
 
-function SpriteOrEmoji({ src, alt, emoji, grayscale }: { src: string; alt: string; emoji: string; grayscale?: boolean }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) {
-    return <div className={`text-5xl py-1 mx-auto ${grayscale ? "grayscale opacity-40" : ""}`}>{emoji}</div>;
+function SpriteOrEmoji({ srcs, alt, emoji, type, grayscale }: {
+  srcs: string[]; alt: string; emoji: string; type: string; grayscale?: boolean;
+}) {
+  const [idx, setIdx]           = useState(0);
+  const [allFailed, setAllFailed] = useState(false);
+
+  if (allFailed || srcs.length === 0) {
+    const bg     = TYPE_BG[type]     ?? "rgba(99,102,241,0.15)";
+    const border = TYPE_BORDER[type] ?? "#818cf8";
+    return (
+      <div className={`h-16 w-16 mx-auto mb-1 flex items-center justify-center rounded-xl ${grayscale ? "grayscale opacity-40" : ""}`}
+           style={{ background: bg, border: `1px solid ${border}50` }}>
+        <span className="text-3xl">{emoji}</span>
+      </div>
+    );
   }
+
   return (
-    <img src={src} alt={alt}
+    <img src={srcs[idx]} alt={alt}
          className={`h-16 w-auto mx-auto mb-1 ${grayscale ? "grayscale opacity-40" : ""}`}
          style={{ imageRendering: "pixelated" }}
-         onError={() => setFailed(true)} />
+         onError={() => idx + 1 < srcs.length ? setIdx(idx + 1) : setAllFailed(true)} />
   );
 }
 
@@ -360,9 +372,10 @@ export default function Gyms() {
                 <div key={i} className="rounded-xl p-3 text-center"
                      style={{ background: TYPE_BG[m.type], border: `1px solid ${TYPE_BORDER[m.type]}30` }}>
                   <SpriteOrEmoji
-                    src={m.sprite}
+                    srcs={m.srcs}
                     alt={m.name}
                     emoji={m.emoji}
+                    type={m.type}
                     grayscale={!elite4Available}
                   />
                   <p className="font-black text-white text-sm">{m.name}</p>

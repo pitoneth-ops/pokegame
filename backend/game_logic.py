@@ -868,6 +868,7 @@ def bag_to_list(player) -> list[dict]:
             "id":     pid,
             "name":   p.get("name", "?"),
             "type1":  p.get("type1", ""),
+            "type2":  p.get("type2"),
             "sprite": SPRITE_URL.format(id=pid),
             "level":  e["level"],
         })

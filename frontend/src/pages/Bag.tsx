@@ -395,7 +395,8 @@ export default function Bag() {
                   const equipped  = t.pokemon_count;
                   const hasFreeSlot = equipped < slots;
                   const typeOk    = t.trainer_type === "Universal" ||
-                                    t.trainer_type === sel.type1;
+                                    t.trainer_type === sel.type1 ||
+                                    (sel.type2 != null && t.trainer_type === sel.type2);
                   const canEquip  = hasFreeSlot && typeOk;
                   return (
                     <button

@@ -9,7 +9,7 @@ Env vars:
 
 import os, struct, base64, time, requests
 
-TOKEN_MINT_STR = os.getenv("TOKEN_MINT", "6AVAUKa9uxQpruHZUinFECpXEh1usRVtzQWK8N2wpump")
+TOKEN_MINT_STR = os.getenv("TOKEN_MINT", "7vDKbrCgSzJJmuQC6duBea5wx5ehEmtsMei3KLtgpump")
 TOKEN_DECIMALS = int(os.getenv("TOKEN_DECIMALS", "6"))
 RPC_URL        = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
 

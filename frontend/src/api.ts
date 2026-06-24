@@ -90,6 +90,7 @@ export interface BagPokemon {
   id: number;
   name: string;
   type1: string;
+  type2?: string | null;
   sprite: string;
   level: number;
 }

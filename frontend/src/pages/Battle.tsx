@@ -77,6 +77,35 @@ function fmtCooldown(mins: number): string {
   return h > 0 ? `${h}h ${m}min` : `${m}min`;
 }
 
+const TYPE_BG_BATTLE: Record<string, string> = {
+  Ice:"rgba(14,116,144,0.35)", Fighting:"rgba(185,28,28,0.35)",
+  Ghost:"rgba(76,29,149,0.35)", Dragon:"rgba(30,58,138,0.35)",
+};
+const TYPE_BORDER_BATTLE: Record<string, string> = {
+  Ice:"#22d3ee", Fighting:"#ef4444", Ghost:"#8b5cf6", Dragon:"#6366f1",
+};
+
+function E4Sprite({ srcs, emoji, type, name }: { srcs: string[]; emoji: string; type: string; name: string }) {
+  const [idx, setIdx]   = useState(0);
+  const [failed, setFailed] = useState(false);
+  if (failed || srcs.length === 0) {
+    const bg = TYPE_BG_BATTLE[type] ?? "rgba(99,102,241,0.25)";
+    const bd = TYPE_BORDER_BATTLE[type] ?? "#818cf8";
+    return (
+      <div className="h-14 w-14 mx-auto mb-1 flex items-center justify-center rounded-xl"
+           style={{ background: bg, border: `1px solid ${bd}60` }}>
+        <span className="text-3xl">{emoji}</span>
+      </div>
+    );
+  }
+  return (
+    <img src={srcs[idx]} alt={name}
+         className="h-14 w-auto mx-auto mb-1"
+         style={{ imageRendering: "pixelated" }}
+         onError={() => idx + 1 < srcs.length ? setIdx(idx + 1) : setFailed(true)} />
+  );
+}
+
 function WinRateBar({ rate }: { rate: number }) {
   const pct = Math.round(rate * 100);
   return (
@@ -514,10 +543,10 @@ export default function Battle() {
   // ── ELITE 4 PREVIEW ──────────────────────────────────────────────────────
   if (phase === "elite_preview") {
     const elite4Members = [
-      { name: "Lorelei", type: "Ice", emoji: "🧊" },
-      { name: "Bruno", type: "Fighting", emoji: "🥊" },
-      { name: "Agatha", type: "Ghost", emoji: "👻" },
-      { name: "Lance", type: "Dragon", emoji: "🐉" },
+      { name: "Lorelei", type: "Ice",     emoji: "🧊", srcs: [`${PS}/lorelei.png`, `${PS}/prima.png`] },
+      { name: "Bruno",   type: "Fighting",emoji: "🥊", srcs: [`${PS}/bruno.png`] },
+      { name: "Agatha",  type: "Ghost",   emoji: "👻", srcs: [`${PS}/agatha.png`] },
+      { name: "Lance",   type: "Dragon",  emoji: "🐉", srcs: [`${PS}/lance.png`] },
     ];
     const matchups = elite4Members.map(m => ({
       ...m, rate: typeMatchup(activeTrainer.trainer_type, m.type)
@@ -538,7 +567,7 @@ export default function Battle() {
           <div className="grid grid-cols-4 gap-2 mb-6">
             {matchups.map((m, i) => (
               <div key={i} className="rounded-xl p-2 text-center" style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.2)" }}>
-                <div className="text-3xl mb-1">{m.emoji}</div>
+                <E4Sprite srcs={m.srcs} emoji={m.emoji} type={m.type} name={m.name} />
                 <p className="text-xs font-black text-white">{m.name}</p>
                 <p className="text-xs text-gray-500">{m.type}</p>
                 <p className={`text-xs font-black mt-1 ${m.rate >= 0.7 ? "text-green-400" : m.rate >= 0.4 ? "text-yellow-400" : "text-red-400"}`}>
