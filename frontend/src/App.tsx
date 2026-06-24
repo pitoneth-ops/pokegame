@@ -1,9 +1,12 @@
 import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { PublicKey } from "@solana/web3.js";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { useGameStore } from "./store";
-import { getPlayer, createPlayer } from "./api";
+import { getPlayer, createPlayer, getWalletInfo } from "./api";
 import { IconHome, IconPack, IconTrainer, IconGym, IconTypes, IconBattle, IconBox, IconPvp, IconAchievements, IconPokedex, IconWiki, IconMarketplace } from "./components/Icons";
 import Home from "./pages/Home";
 import Pack from "./pages/Pack";
@@ -70,10 +73,35 @@ function WalletButton() {
   );
 }
 
+function fmtBal(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
+
 function Nav() {
-  const { playerName, player } = useGameStore();
+  const { playerName } = useGameStore();
+  const { publicKey, connected } = useWallet();
+  const { connection } = useConnection();
   const nav = useNavigate();
   const [lockedToast, setLockedToast] = useState(false);
+  const [walletBal, setWalletBal] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!connected || !publicKey) { setWalletBal(null); return; }
+    let alive = true;
+    getWalletInfo().then(async info => {
+      if (!alive || !info.treasury) return;
+      try {
+        const mint = new PublicKey(info.mint);
+        const prog = new PublicKey(info.token_program || "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+        const ata  = await getAssociatedTokenAddress(mint, publicKey, false, prog);
+        const bal  = await connection.getTokenAccountBalance(ata);
+        if (alive) setWalletBal(Number(bal.value.uiAmount) ?? 0);
+      } catch { if (alive) setWalletBal(0); }
+    }).catch(() => { if (alive) setWalletBal(0); });
+    return () => { alive = false; };
+  }, [connected, publicKey?.toBase58()]);
 
   const cls = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 ${
@@ -128,7 +156,9 @@ function Nav() {
         {playerName && (
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl"
                style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)" }}>
-            <span className="text-yellow-400 font-black text-sm">{player?.tokens ?? "—"} $PKG</span>
+            <span className="text-yellow-400 font-black text-sm">
+              {walletBal === null ? "…" : fmtBal(walletBal)} $PKG
+            </span>
           </div>
         )}
         <WalletButton />
