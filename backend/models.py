@@ -10,7 +10,7 @@ class Player(Base):
 
     id          = Column(Integer, primary_key=True, index=True)
     name        = Column(String, unique=True, index=True)
-    tokens      = Column(Integer, default=500)
+    tokens      = Column(Integer, default=0)
     wins        = Column(Integer, default=0)
     losses      = Column(Integer, default=0)
     gym_wins    = Column(Integer, default=0)

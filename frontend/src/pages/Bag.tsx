@@ -63,7 +63,7 @@ export default function Bag() {
 
   if (!playerName) return (
     <div className="text-center py-24">
-      <button className="btn-yellow" onClick={() => nav("/")}>Entrar</button>
+      <button className="btn-yellow" onClick={() => nav("/")}>Connect Wallet</button>
     </div>
   );
 
@@ -73,12 +73,12 @@ export default function Bag() {
     setLoading(true);
     try {
       await equipFromBag(playerName, selected, tid);
-      setMsg({ text: "Pokémon equipado!", ok: true });
+      setMsg({ text: "Pokémon equipped!", ok: true });
       setSelected(null);
       setPickTrainer(false);
       await refresh();
     } catch (e: any) {
-      setMsg({ text: e?.response?.data?.detail ?? "Erro ao equipar", ok: false });
+      setMsg({ text: e?.response?.data?.detail ?? "Error equipping", ok: false });
     } finally { setLoading(false); }
   }
 
@@ -87,7 +87,7 @@ export default function Bag() {
     setLoading(true);
     try {
       await releaseFromBag(playerName, idx);
-      setMsg({ text: "Pokémon liberado.", ok: true });
+      setMsg({ text: "Pokémon released.", ok: true });
       setSelected(null);
       await refresh();
     } catch (e: any) {
@@ -101,7 +101,7 @@ export default function Bag() {
     try {
       const r = await expandBag(playerName);
       setCapacity(r.bag_capacity);
-      setMsg({ text: `Box expandida para ${r.bag_capacity} slots!`, ok: true });
+      setMsg({ text: `Box expanded to ${r.bag_capacity} slots!`, ok: true });
       await refresh();
     } catch (e: any) {
       setMsg({ text: e?.response?.data?.detail ?? "Erro", ok: false });
@@ -136,8 +136,8 @@ export default function Bag() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-white">📦 Box de Pokémon</h1>
-          <p className="text-gray-500 text-sm mt-1">{bag.length}/{capacity} slots · drops das batalhas</p>
+          <h1 className="text-3xl font-black text-white">📦 Pokémon Box</h1>
+          <p className="text-gray-500 text-sm mt-1">{bag.length}/{capacity} slots · battle drops</p>
         </div>
         {expandCost && (
           <button
@@ -179,13 +179,13 @@ export default function Bag() {
                   <span style={{ fontSize: 22 }}>{sd?.icon ?? "💎"}</span>
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 900, color: sd?.color ?? "#888" }}>{name}</div>
-                    <div style={{ fontSize: 10, color: "#9ca3af" }}>{count}× disponível</div>
+                    <div style={{ fontSize: 10, color: "#9ca3af" }}>{count}× available</div>
                   </div>
                 </div>
               );
             })}
           </div>
-          <p className="text-xs text-gray-600 mt-3">Selecione um Pokémon na Box para usar uma pedra</p>
+          <p className="text-xs text-gray-600 mt-3">Select a Pokémon in the Box to use a stone</p>
         </div>
       )}
 
@@ -208,7 +208,7 @@ export default function Bag() {
           borderBottom: "2px solid rgba(100,160,255,0.3)",
         }}>
           <span style={{ color: "#fff", fontWeight: 900, fontSize: 14, letterSpacing: "0.1em" }}>
-            ◀ CAIXA 1 ▶
+            ◀ BOX 1 ▶
           </span>
           <span style={{ color: "rgba(180,210,255,0.7)", fontSize: 11 }}>
             {bag.length}/{capacity}
@@ -322,7 +322,7 @@ export default function Bag() {
                 onClick={() => { setPickTrainer(true); setPickStone(false); setMsg(null); }}
                 disabled={loading}
               >
-                ⚔️ Equipar
+                ⚔️ Equip
               </button>
               {Object.keys(items).filter(k => items[k] > 0).length > 0 && (
                 <button
@@ -336,7 +336,7 @@ export default function Bag() {
                   onClick={() => { setPickStone(true); setPickTrainer(false); setMsg(null); }}
                   disabled={loading}
                 >
-                  🪨 Evoluir
+                  🪨 Evolve
                 </button>
               )}
               <button
@@ -352,7 +352,7 @@ export default function Bag() {
           {/* Stone picker */}
           {pickStone && (
             <div className="mt-4 pt-4" style={{ borderTop: "1px solid rgba(168,85,247,0.2)" }}>
-              <p className="text-xs text-purple-400 font-black mb-3 tracking-wider">ESCOLHA A PEDRA</p>
+              <p className="text-xs text-purple-400 font-black mb-3 tracking-wider">CHOOSE A STONE</p>
               <div className="grid grid-cols-2 gap-2">
                 {Object.entries(items).filter(([, cnt]) => cnt > 0).map(([name, count]) => {
                   const sd = STONE_DATA[name];
@@ -372,7 +372,7 @@ export default function Bag() {
                         <span style={{ fontSize: 24 }}>{sd?.icon ?? "💎"}</span>
                         <div>
                           <div style={{ fontSize: 11, fontWeight: 900, color: sd?.color ?? "#888" }}>{name}</div>
-                          <div style={{ fontSize: 10, color: "#9ca3af" }}>{count}× disponível</div>
+                          <div style={{ fontSize: 10, color: "#9ca3af" }}>{count}× available</div>
                         </div>
                       </div>
                     </button>
@@ -380,7 +380,7 @@ export default function Bag() {
                 })}
               </div>
               <button onClick={() => setPickStone(false)} className="btn-gray w-full mt-3 text-sm">
-                Cancelar
+                Cancel
               </button>
             </div>
           )}
@@ -388,7 +388,7 @@ export default function Bag() {
           {/* Trainer picker */}
           {pickTrainer && (
             <div className="mt-4 pt-4" style={{ borderTop: "1px solid rgba(100,160,255,0.15)" }}>
-              <p className="text-xs text-gray-400 font-black mb-3 tracking-wider">ESCOLHA O TREINADOR</p>
+              <p className="text-xs text-gray-400 font-black mb-3 tracking-wider">CHOOSE A TRAINER</p>
               <div className="space-y-2">
                 {trainers.map((t, idx) => {
                   const slots     = t.pokemon_slots;
@@ -430,7 +430,7 @@ export default function Bag() {
                         </div>
                         {!canEquip && (
                           <span className="text-xs text-red-400 font-bold">
-                            {!hasFreeSlot ? "Sem slot" : "Tipo incompatível"}
+                            {!hasFreeSlot ? "No slot" : "Incompatible type"}
                           </span>
                         )}
                         {canEquip && (
@@ -442,7 +442,7 @@ export default function Bag() {
                 })}
               </div>
               <button onClick={() => setPickTrainer(false)} className="btn-gray w-full mt-3 text-sm">
-                Cancelar
+                Cancel
               </button>
             </div>
           )}
@@ -453,18 +453,18 @@ export default function Bag() {
       {bag.length === 0 && (
         <div className="text-center py-12">
           <div className="text-6xl mb-4 opacity-30">📭</div>
-          <p className="text-gray-500 text-lg font-bold">Box vazia</p>
-          <p className="text-gray-600 text-sm mt-2">Pokémon dropados em batalha aparecem aqui</p>
-          <button className="btn-red mt-4" onClick={() => nav("/battle")}>⚔️ Ir para Batalhas</button>
+          <p className="text-gray-500 text-lg font-bold">Empty Box</p>
+          <p className="text-gray-600 text-sm mt-2">Pokémon dropped in battles appear here</p>
+          <button className="btn-red mt-4" onClick={() => nav("/battle")}>⚔️ Go to Battles</button>
         </div>
       )}
 
       {/* Info */}
       <div className="card text-xs text-gray-600 space-y-1">
-        <p>• Drops vão para a box — equipe em treinadores com slots livres</p>
-        <p>• Treinadores ganham +1 slot nos níveis 5, 10, 15, 20 e 25</p>
-        <p>• Treinadores Universais (Lendários) podem equipar qualquer tipo</p>
-        <p>• Expanda a box por tokens para guardar mais Pokémon</p>
+        <p>• Drops go to the box — equip on trainers with free slots</p>
+        <p>• Trainers gain +1 slot at levels 5, 10, 15, 20 and 25</p>
+        <p>• Universal (Legendary) trainers can equip any type</p>
+        <p>• Expand the box for tokens to store more Pokémon</p>
       </div>
     </div>
   );
