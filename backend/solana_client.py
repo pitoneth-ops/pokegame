@@ -53,14 +53,15 @@ def _rpc(method: str, params: list) -> dict:
 def _detect_token_program() -> str:
     """Query the mint to find out if it's SPL Token or Token-2022."""
     try:
-        resp = _rpc("getAccountInfo", [TOKEN_MINT_STR, {"encoding": "base64"}])
-        owner = resp.get("result", {}).get("value", {}).get("owner", _TOKEN_PROGRAM)
-        prog = owner if owner in (_TOKEN_PROGRAM, _TOKEN_2022_PROGRAM) else _TOKEN_PROGRAM
+        resp  = _rpc("getAccountInfo", [TOKEN_MINT_STR, {"encoding": "base64"}])
+        owner = resp.get("result", {}).get("value", {}).get("owner", _TOKEN_2022_PROGRAM)
+        prog  = owner if owner in (_TOKEN_PROGRAM, _TOKEN_2022_PROGRAM) else _TOKEN_2022_PROGRAM
         print(f"[solana] Token program detected: {prog}")
         return prog
     except Exception as e:
-        print(f"[solana] Could not detect token program, defaulting to SPL: {e}")
-        return _TOKEN_PROGRAM
+        # Default to Token-2022 — we know this mint uses it
+        print(f"[solana] Detection failed, using Token-2022 default: {e}")
+        return _TOKEN_2022_PROGRAM
 
 
 def _get_token_program() -> str:
