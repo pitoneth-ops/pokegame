@@ -69,6 +69,14 @@ class UnequipBody(BaseModel):
 class SwapTypeBody(BaseModel):
     new_type: str
 
+class DepositVerifyBody(BaseModel):
+    signature: str
+    wallet: str   # player's Solana public key
+
+class WithdrawBody(BaseModel):
+    amount: int
+    wallet: str   # player's Solana public key
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -417,6 +425,44 @@ def use_stone(name: str, body: UseStoneBody, db: Session = Depends(get_db)):
     db.commit()
     result["bag"] = bag_to_list(player)
     return result
+
+
+# ── Solana token endpoints ────────────────────────────────────────────────────
+
+@app.get("/wallet/info")
+def wallet_info():
+    from solana_client import get_token_info
+    return get_token_info()
+
+
+@app.post("/player/{name}/deposit/verify")
+def deposit_verify(name: str, body: DepositVerifyBody, db: Session = Depends(get_db)):
+    player = _get_player(name, db)
+    from solana_client import verify_deposit_tx
+    result = verify_deposit_tx(body.signature, body.wallet)
+    if not result["ok"]:
+        raise HTTPException(400, result["error"])
+    player.tokens += result["amount"]
+    db.commit()
+    return {"ok": True, "amount": result["amount"], "tokens": player.tokens}
+
+
+@app.post("/player/{name}/withdraw")
+def withdraw(name: str, body: WithdrawBody, db: Session = Depends(get_db)):
+    player = _get_player(name, db)
+    if body.amount <= 0:
+        raise HTTPException(400, "amount must be positive")
+    if player.tokens < body.amount:
+        raise HTTPException(400, f"not enough tokens (need {body.amount})")
+    player.tokens -= body.amount
+    db.commit()
+    from solana_client import send_spl_tokens
+    result = send_spl_tokens(body.wallet, body.amount)
+    if not result["ok"]:
+        player.tokens += body.amount
+        db.commit()
+        raise HTTPException(500, result["error"])
+    return {"ok": True, "signature": result["signature"], "tokens": player.tokens}
 
 
 # ── Dev ───────────────────────────────────────────────────────────────────────
