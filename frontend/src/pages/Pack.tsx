@@ -234,15 +234,24 @@ export default function Pack() {
       const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury);
       const rawAmount  = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
 
-      const createAtaIx = createAssociatedTokenAccountIdempotentInstruction(
-        publicKey, treasuryAta, treasury, tokenMint,
-      );
       const ix  = createTransferInstruction(playerAta, treasuryAta, publicKey, rawAmount);
-      const tx  = new Transaction().add(createAtaIx).add(ix);
-      const sig = await sendTransaction(tx, connection);
+      const tx  = new Transaction();
+
+      // Only create treasury ATA if it doesn't exist yet (first-time setup)
+      const treasuryAtaInfo = await connection.getAccountInfo(treasuryAta);
+      if (!treasuryAtaInfo) {
+        tx.add(createAssociatedTokenAccountIdempotentInstruction(publicKey, treasuryAta, treasury, tokenMint));
+      }
+      tx.add(ix);
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = publicKey;
+
+      const sig = await sendTransaction(tx, connection, { minContextSlot: lastValidBlockHeight });
 
       setPhase("confirming");
-      await connection.confirmTransaction(sig, "confirmed");
+      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
       setPhase("opening");
 
       const wallet = publicKey.toBase58();
