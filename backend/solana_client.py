@@ -100,6 +100,25 @@ def get_token_info() -> dict:
     }
 
 
+def get_wallet_token_balance(wallet_str: str) -> dict:
+    """Return on-chain token balance for wallet_str (server-side, no CORS issues)."""
+    ata_str = _get_ata(wallet_str, TOKEN_MINT_STR)
+    try:
+        resp   = _rpc("getTokenAccountBalance", [ata_str])
+        result = resp.get("result", {})
+        val    = result.get("value") if result else None
+        if not val:
+            return {"balance": 0.0, "raw": 0, "ata": ata_str}
+        return {
+            "balance": float(val.get("uiAmount") or 0),
+            "raw":     int(val.get("amount") or 0),
+            "ata":     ata_str,
+        }
+    except Exception as e:
+        print(f"[solana] getTokenAccountBalance error for {wallet_str}: {e}")
+        return {"balance": 0.0, "raw": 0, "ata": ata_str}
+
+
 def verify_deposit_tx(signature: str, from_wallet: str) -> dict:
     """
     Verify that `signature` transferred TOKEN_MINT tokens to treasury.

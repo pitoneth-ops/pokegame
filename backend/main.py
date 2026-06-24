@@ -444,6 +444,12 @@ def wallet_info():
     return get_token_info()
 
 
+@app.get("/wallet/balance/{wallet}")
+def wallet_balance(wallet: str):
+    from solana_client import get_wallet_token_balance
+    return get_wallet_token_balance(wallet)
+
+
 @app.post("/player/{name}/deposit/verify")
 def deposit_verify(name: str, body: DepositVerifyBody, db: Session = Depends(get_db)):
     player = _get_player(name, db)

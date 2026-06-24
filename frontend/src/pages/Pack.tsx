@@ -5,7 +5,7 @@ import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, createTransferCheckedInstruction, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { useGameStore } from "../store";
-import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo } from "../api";
+import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo, getWalletBalance } from "../api";
 import type { Trainer, PokemonPackResult } from "../api";
 import { TypeIcon } from "../components/Icons";
 
@@ -239,10 +239,11 @@ export default function Pack() {
       console.log("[pack] playerAta:", playerAta.toBase58());
       console.log("[pack] treasuryAta:", treasuryAta.toBase58());
 
-      // Verify source ATA exists before submitting
-      const playerAtaInfo = await connection.getAccountInfo(playerAta);
-      if (!playerAtaInfo) {
-        setError("Sua conta de token não existe. Certifique-se de ter recebido SCAM nesta wallet ao menos uma vez.");
+      // Check on-chain balance via backend (avoids CORS, uses correct Token-2022 ATA)
+      const balResp = await getWalletBalance(publicKey.toBase58());
+      console.log("[pack] balance:", balResp.balance, "ata:", balResp.ata);
+      if (balResp.raw < Number(rawAmount)) {
+        setError(`Saldo insuficiente: você tem ${balResp.balance.toFixed(2)} $PKG, precisa de ${cost}.`);
         setPhase("idle");
         return;
       }

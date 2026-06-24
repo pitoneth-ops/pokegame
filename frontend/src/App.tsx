@@ -1,12 +1,9 @@
 import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useConnection } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { useGameStore } from "./store";
-import { getPlayer, createPlayer, getWalletInfo } from "./api";
+import { getPlayer, createPlayer, getWalletBalance } from "./api";
 import { IconHome, IconPack, IconTrainer, IconGym, IconTypes, IconBattle, IconBox, IconPvp, IconAchievements, IconPokedex, IconWiki, IconMarketplace } from "./components/Icons";
 import Home from "./pages/Home";
 import Pack from "./pages/Pack";
@@ -82,7 +79,6 @@ function fmtBal(n: number): string {
 function Nav() {
   const { playerName } = useGameStore();
   const { publicKey, connected } = useWallet();
-  const { connection } = useConnection();
   const nav = useNavigate();
   const [lockedToast, setLockedToast] = useState(false);
   const [walletBal, setWalletBal] = useState<number | null>(null);
@@ -90,16 +86,9 @@ function Nav() {
   useEffect(() => {
     if (!connected || !publicKey) { setWalletBal(null); return; }
     let alive = true;
-    getWalletInfo().then(async info => {
-      if (!alive || !info.treasury) return;
-      try {
-        const mint = new PublicKey(info.mint);
-        const prog = new PublicKey(info.token_program || "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-        const ata  = await getAssociatedTokenAddress(mint, publicKey, false, prog);
-        const bal  = await connection.getTokenAccountBalance(ata);
-        if (alive) setWalletBal(Number(bal.value.uiAmount) ?? 0);
-      } catch { if (alive) setWalletBal(0); }
-    }).catch(() => { if (alive) setWalletBal(0); });
+    getWalletBalance(publicKey.toBase58())
+      .then(b => { if (alive) setWalletBal(b.balance); })
+      .catch(() => { if (alive) setWalletBal(0); });
     return () => { alive = false; };
   }, [connected, publicKey?.toBase58()]);
 

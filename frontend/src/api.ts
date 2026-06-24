@@ -279,6 +279,9 @@ export const useStone = (name: string, bag_index: number, stone_name: string) =>
 export const getWalletInfo = () =>
   api.get<{ mint: string; decimals: number; treasury: string | null; token_program: string }>("/wallet/info").then(r => r.data);
 
+export const getWalletBalance = (wallet: string) =>
+  api.get<{ balance: number; raw: number; ata: string }>(`/wallet/balance/${wallet}`).then(r => r.data);
+
 export const verifyDeposit = (name: string, signature: string, wallet: string) =>
   api.post<{ ok: boolean; amount: number; tokens: number }>(
     `/player/${name}/deposit/verify`, { signature, wallet }
