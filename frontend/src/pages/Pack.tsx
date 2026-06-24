@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, createTransferCheckedInstruction, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAddress, createTransferCheckedInstruction, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { useGameStore } from "../store";
 import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo, getWalletBalance } from "../api";
 import type { Trainer, PokemonPackResult } from "../api";
@@ -230,7 +230,8 @@ export default function Pack() {
       const cost        = PACK_COSTS[type];
       const tokenMint   = new PublicKey(walletInfo.mint);
       const treasury    = new PublicKey(walletInfo.treasury);
-      const tokenProg   = new PublicKey(walletInfo.token_program || TOKEN_PROGRAM_ID.toBase58());
+      // SCAM / future $PKG token is Token-2022 — hardcode program ID
+      const tokenProg   = TOKEN_2022_PROGRAM_ID;
       const playerAta   = await getAssociatedTokenAddress(tokenMint, publicKey, false, tokenProg);
       const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury,  false, tokenProg);
       const rawAmount   = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
