@@ -276,6 +276,16 @@ export const useStone = (name: string, bag_index: number, stone_name: string) =>
     `/player/${name}/bag/use-stone`, { bag_index, stone_name }
   ).then(r => r.data);
 
+export interface PackPrices {
+  price_usd: number | null;
+  pack_prices_usd: Record<"combo" | "trainer" | "pokemon", number>;
+  pack_prices_tokens: Record<"combo" | "trainer" | "pokemon", number>;
+  oracle: "live" | "unavailable";
+}
+
+export const getPackPrices = () =>
+  api.get<PackPrices>("/market/price").then(r => r.data);
+
 export const getWalletInfo = () =>
   api.get<{ mint: string; decimals: number; treasury: string | null; token_program: string }>("/wallet/info").then(r => r.data);
 

@@ -5,8 +5,8 @@ import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, createTransferCheckedInstruction, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { useGameStore } from "../store";
-import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo, getWalletBalance } from "../api";
-import type { Trainer, PokemonPackResult } from "../api";
+import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo, getWalletBalance, getPackPrices } from "../api";
+import type { Trainer, PokemonPackResult, PackPrices } from "../api";
 import { TypeIcon } from "../components/Icons";
 
 const RARITY_CFG = {
@@ -20,7 +20,14 @@ type Rarity    = keyof typeof RARITY_CFG;
 type PackType  = "combo" | "trainer" | "pokemon";
 type Phase     = "idle" | "signing" | "confirming" | "opening" | "reveal_trainer" | "reveal_pokemon";
 
-const PACK_COSTS: Record<PackType, number> = { combo: 150, trainer: 80, pokemon: 60 };
+const PACK_COSTS_FALLBACK: Record<PackType, number> = { combo: 150, trainer: 80, pokemon: 60 };
+const PACK_USD: Record<PackType, number> = { combo: 1.00, trainer: 0.50, pokemon: 0.40 };
+
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toString();
+}
 
 // ── Visuals ───────────────────────────────────────────────────────────────────
 
@@ -52,8 +59,8 @@ function PackCardVisual({ accent, label, shimmer, icon }: {
 
 // ── Trainer reveal ────────────────────────────────────────────────────────────
 
-function TrainerReveal({ trainer, onReset, onOpen }: {
-  trainer: Trainer; onReset: () => void; onOpen: () => void;
+function TrainerReveal({ trainer, onReset, onOpen, comboCostLabel }: {
+  trainer: Trainer; onReset: () => void; onOpen: () => void; comboCostLabel: string;
 }) {
   const r   = trainer.rarity as Rarity;
   const cfg = RARITY_CFG[r] ?? RARITY_CFG.common;
@@ -121,7 +128,7 @@ function TrainerReveal({ trainer, onReset, onOpen }: {
         </div>
       </div>
       <div className="flex gap-3 mt-5">
-        <button className="btn-yellow" onClick={onOpen}>Open Another · 150 $PKG</button>
+        <button className="btn-yellow" onClick={onOpen}>Open Another · {comboCostLabel}</button>
         <button className="btn-gray" onClick={() => nav("/trainers")}>View collection</button>
       </div>
       <button className="text-gray-500 text-xs mt-3 underline" onClick={onReset}>Back</button>
@@ -131,7 +138,7 @@ function TrainerReveal({ trainer, onReset, onOpen }: {
 
 // ── Pokémon reveal ────────────────────────────────────────────────────────────
 
-function PokemonReveal({ result, onReset }: { result: PokemonPackResult; onReset: () => void }) {
+function PokemonReveal({ result, onReset, pokemonCostLabel }: { result: PokemonPackResult; onReset: () => void; pokemonCostLabel: string }) {
   const r   = result.rarity as Rarity;
   const cfg = RARITY_CFG[r] ?? RARITY_CFG.common;
   const p   = result.pokemon;
@@ -156,7 +163,7 @@ function PokemonReveal({ result, onReset }: { result: PokemonPackResult; onReset
         <p style={{ fontSize: 11, color: "#6b7280", textAlign: "center" }}>Added to your Box!</p>
       </div>
       <div className="flex gap-3 mt-5">
-        <button className="btn-yellow" onClick={onReset}>Open Another · 60 $PKG</button>
+        <button className="btn-yellow" onClick={onReset}>Open Another · {pokemonCostLabel}</button>
       </div>
       <button className="text-gray-500 text-xs mt-3 underline" onClick={onReset}>Back</button>
     </div>
@@ -171,12 +178,12 @@ const PHASE_LABEL: Partial<Record<Phase, string>> = {
   opening:    "Opening pack…",
 };
 
-function PackButton({ type, accent, busy, openingType, phase, disabled, onOpen }: {
+function PackButton({ type, accent, busy, openingType, phase, disabled, onOpen, costLabel }: {
   type: PackType; accent: string; busy: boolean; openingType: PackType;
-  phase: Phase; disabled: boolean; onOpen: () => void;
+  phase: Phase; disabled: boolean; onOpen: () => void; costLabel: string;
 }) {
   const isBusy = busy && openingType === type;
-  const label  = isBusy ? (PHASE_LABEL[phase] ?? "…") : `Open Pack · ${PACK_COSTS[type]} $PKG`;
+  const label  = isBusy ? (PHASE_LABEL[phase] ?? "…") : `Open Pack · ${costLabel}`;
   return (
     <button
       onClick={onOpen}
@@ -207,8 +214,20 @@ export default function Pack() {
   const [pokemonResult, setPokemon] = useState<PokemonPackResult | null>(null);
   const [error, setError]           = useState("");
   const [walletInfo, setWalletInfo] = useState<{ mint: string; decimals: number; treasury: string | null; token_program: string } | null>(null);
+  const [prices, setPrices]         = useState<PackPrices | null>(null);
 
   useEffect(() => { getWalletInfo().then(setWalletInfo).catch(() => {}); }, []);
+  useEffect(() => { getPackPrices().then(setPrices).catch(() => {}); }, []);
+
+  function getCost(type: PackType): number {
+    return prices?.pack_prices_tokens[type] ?? PACK_COSTS_FALLBACK[type];
+  }
+  function getCostLabel(type: PackType): string {
+    const usd = PACK_USD[type];
+    const tok = getCost(type);
+    if (prices?.oracle === "live") return `$${usd.toFixed(2)} · ${fmtTokens(tok)} $PKG`;
+    return `${fmtTokens(tok)} $PKG`;
+  }
 
   if (!playerName) return (
     <div className="text-center py-20">
@@ -227,7 +246,7 @@ export default function Pack() {
     setPhase("signing");
 
     try {
-      const cost        = PACK_COSTS[type];
+      const cost        = getCost(type);
       const tokenMint   = new PublicKey(walletInfo.mint);
       const treasury    = new PublicKey(walletInfo.treasury);
       // SCAM / future $PKG token is Token-2022 — hardcode program ID
@@ -244,7 +263,7 @@ export default function Pack() {
       const balResp = await getWalletBalance(publicKey.toBase58());
       console.log("[pack] balance:", balResp.balance, "ata:", balResp.ata);
       if (balResp.raw < Number(rawAmount)) {
-        setError(`Saldo insuficiente: você tem ${balResp.balance.toFixed(2)} $PKG, precisa de ${cost}.`);
+        setError(`Saldo insuficiente: você tem ${balResp.balance.toFixed(2)} $PKG, precisa de ${fmtTokens(cost)}${prices?.oracle === "live" ? ` (~$${PACK_USD[type].toFixed(2)})` : ""}.`);
         setPhase("idle");
         return;
       }
@@ -311,7 +330,7 @@ export default function Pack() {
     return (
       <div className="animate-fade-in">
         <style>{`@keyframes bounceIn{0%{transform:scale(0.3);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}`}</style>
-        <TrainerReveal trainer={trainerResult} onReset={handleReset} onOpen={() => handleOpen("combo")} />
+        <TrainerReveal trainer={trainerResult} onReset={handleReset} onOpen={() => handleOpen("combo")} comboCostLabel={getCostLabel("combo")} />
       </div>
     );
   }
@@ -319,7 +338,7 @@ export default function Pack() {
     return (
       <div className="animate-fade-in">
         <style>{`@keyframes bounceIn{0%{transform:scale(0.3);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}`}</style>
-        <PokemonReveal result={pokemonResult} onReset={handleReset} />
+        <PokemonReveal result={pokemonResult} onReset={handleReset} pokemonCostLabel={getCostLabel("pokemon")} />
       </div>
     );
   }
@@ -368,7 +387,7 @@ export default function Pack() {
             </div>
           ))}
         </div>
-        <div style={{ width: "100%" }}><PackButton type="combo" accent="#fbbf24" busy={busy} openingType={openingType} phase={phase} disabled={isDisabled} onOpen={() => handleOpen("combo")} /></div>
+        <div style={{ width: "100%" }}><PackButton type="combo" accent="#fbbf24" busy={busy} openingType={openingType} phase={phase} disabled={isDisabled} onOpen={() => handleOpen("combo")} costLabel={getCostLabel("combo")} /></div>
       </div>
 
       {/* ── Trainer + Pokémon packs ── */}
@@ -385,7 +404,7 @@ export default function Pack() {
           <div style={{ animation: busy && openingType === "trainer" ? "none" : "packFloat 4.5s ease-in-out infinite" }}>
             <PackCardVisual accent="#60a5fa" label="TRAINER PACK" shimmer icon="👤" />
           </div>
-          <div style={{ width: "100%" }}><PackButton type="trainer" accent="#60a5fa" busy={busy} openingType={openingType} phase={phase} disabled={isDisabled} onOpen={() => handleOpen("trainer")} /></div>
+          <div style={{ width: "100%" }}><PackButton type="trainer" accent="#60a5fa" busy={busy} openingType={openingType} phase={phase} disabled={isDisabled} onOpen={() => handleOpen("trainer")} costLabel={getCostLabel("trainer")} /></div>
         </div>
 
         <div style={{
@@ -399,7 +418,7 @@ export default function Pack() {
           <div style={{ animation: busy && openingType === "pokemon" ? "none" : "packFloat 3.5s ease-in-out infinite" }}>
             <PackCardVisual accent="#4ade80" label="POKÉMON PACK" shimmer icon="🐾" />
           </div>
-          <div style={{ width: "100%" }}><PackButton type="pokemon" accent="#4ade80" busy={busy} openingType={openingType} phase={phase} disabled={isDisabled} onOpen={() => handleOpen("pokemon")} /></div>
+          <div style={{ width: "100%" }}><PackButton type="pokemon" accent="#4ade80" busy={busy} openingType={openingType} phase={phase} disabled={isDisabled} onOpen={() => handleOpen("pokemon")} costLabel={getCostLabel("pokemon")} /></div>
         </div>
       </div>
 

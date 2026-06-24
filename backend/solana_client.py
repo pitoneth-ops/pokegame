@@ -7,7 +7,7 @@ Env vars:
   SOLANA_RPC_URL        — Solana RPC endpoint
 """
 
-import os, struct, base64, requests
+import os, struct, base64, time, requests
 
 TOKEN_MINT_STR = os.getenv("TOKEN_MINT", "6AVAUKa9uxQpruHZUinFECpXEh1usRVtzQWK8N2wpump")
 TOKEN_DECIMALS = int(os.getenv("TOKEN_DECIMALS", "6"))
@@ -194,6 +194,36 @@ def verify_deposit_tx(signature: str, from_wallet: str) -> dict:
         return {"ok": False, "error": f"Amount too small — minimum is 1 token (10^{TOKEN_DECIMALS} raw units)."}
 
     return {"ok": True, "amount": game_amount}
+
+
+_price_cache: dict = {"usd": None, "ts": 0.0}
+_PRICE_TTL = 60.0  # seconds
+
+
+def get_token_price_usd() -> float | None:
+    """Fetch token price in USD from DexScreener, cached 60 s."""
+    now = time.time()
+    if _price_cache["usd"] is not None and now - _price_cache["ts"] < _PRICE_TTL:
+        return _price_cache["usd"]
+    try:
+        r = requests.get(
+            f"https://api.dexscreener.com/latest/dex/tokens/{TOKEN_MINT_STR}",
+            timeout=5,
+            headers={"Accept": "application/json"},
+        )
+        r.raise_for_status()
+        pairs = r.json().get("pairs") or []
+        for pair in pairs:
+            raw = pair.get("priceUsd")
+            if raw and float(raw) > 0:
+                price = float(raw)
+                _price_cache["usd"] = price
+                _price_cache["ts"]  = now
+                print(f"[solana] token price: ${price:.10f}")
+                return price
+    except Exception as e:
+        print(f"[solana] price fetch error: {e}")
+    return _price_cache.get("usd")  # return stale if available
 
 
 def _find_ata_via_rpc(wallet_str: str) -> str | None:

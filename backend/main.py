@@ -19,7 +19,7 @@ from pokemon_data import (
     ELITE4_REWARD, MARKETPLACE_POKEMON_COST, GYM_LEADERS_ORDER,
     LEVEL_UNLOCK_COSTS, BAG_EXPAND_COSTS, ROUTES,
     TRAINER_PACK_COST, POKEMON_PACK_COST, COMBO_PACK_COST,
-    NPC_SPRITE_POOLS, TYPE_SWAP_COST,
+    NPC_SPRITE_POOLS, TYPE_SWAP_COST, PACK_PRICES_USD,
 )
 
 app = FastAPI(title="PokeGame API")
@@ -171,11 +171,28 @@ def _verify_pack_payment(body: PackPayBody, cost: int):
         raise HTTPException(400, f"insufficient payment (need {cost} $PKG, got {result['amount']})")
 
 
+_PACK_FALLBACK = {"combo": COMBO_PACK_COST, "trainer": TRAINER_PACK_COST, "pokemon": POKEMON_PACK_COST}
+
+
+def _verify_pack_payment_usd(body: PackPayBody, pack_key: str):
+    from solana_client import verify_deposit_tx, get_token_price_usd
+    result = verify_deposit_tx(body.signature, body.wallet)
+    if not result["ok"]:
+        raise HTTPException(400, result["error"])
+    price = get_token_price_usd()
+    if price and price > 0:
+        min_tokens = max(1, int(PACK_PRICES_USD[pack_key] / price * 0.90))  # 10% slippage
+    else:
+        min_tokens = _PACK_FALLBACK[pack_key]
+    if result["amount"] < min_tokens:
+        raise HTTPException(400, f"insufficient payment: sent {result['amount']} $PKG, need at least {min_tokens}")
+
+
 @app.post("/player/{name}/pack")
 def open_pack(name: str, body: PackPayBody, db: Session = Depends(get_db)):
     """Combo pack — paid with real SPL tokens from wallet."""
     player = _get_player(name, db)
-    _verify_pack_payment(body, COMBO_PACK_COST)
+    _verify_pack_payment_usd(body, "combo")
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
     initial_pokemon                    = pick_initial_pokemon(trainer_type)
@@ -188,7 +205,7 @@ def open_pack(name: str, body: PackPayBody, db: Session = Depends(get_db)):
 def open_trainer_pack_endpoint(name: str, body: PackPayBody, db: Session = Depends(get_db)):
     """Trainer-only pack — paid with real SPL tokens from wallet."""
     player = _get_player(name, db)
-    _verify_pack_payment(body, TRAINER_PACK_COST)
+    _verify_pack_payment_usd(body, "trainer")
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
     trainer = _create_trainer_row(player, db, rarity, "", char_type, char_name, trainer_type)
@@ -200,7 +217,7 @@ def open_trainer_pack_endpoint(name: str, body: PackPayBody, db: Session = Depen
 def open_pokemon_pack_endpoint(name: str, body: PackPayBody, db: Session = Depends(get_db)):
     """Pokémon-only pack — paid with real SPL tokens from wallet."""
     player = _get_player(name, db)
-    _verify_pack_payment(body, POKEMON_PACK_COST)
+    _verify_pack_payment_usd(body, "pokemon")
     result = open_pokemon_pack(player)
     if "error" in result:
         raise HTTPException(400, result["error"])
@@ -434,6 +451,27 @@ def use_stone(name: str, body: UseStoneBody, db: Session = Depends(get_db)):
     db.commit()
     result["bag"] = bag_to_list(player)
     return result
+
+
+# ── Market / price oracle ─────────────────────────────────────────────────────
+
+@app.get("/market/price")
+def market_price():
+    from solana_client import get_token_price_usd
+    price = get_token_price_usd()
+    if price and price > 0:
+        return {
+            "price_usd": price,
+            "pack_prices_usd": PACK_PRICES_USD,
+            "pack_prices_tokens": {k: max(1, int(v / price)) for k, v in PACK_PRICES_USD.items()},
+            "oracle": "live",
+        }
+    return {
+        "price_usd": None,
+        "pack_prices_usd": PACK_PRICES_USD,
+        "pack_prices_tokens": _PACK_FALLBACK,
+        "oracle": "unavailable",
+    }
 
 
 # ── Solana token endpoints ────────────────────────────────────────────────────

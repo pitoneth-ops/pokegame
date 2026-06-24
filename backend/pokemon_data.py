@@ -587,7 +587,10 @@ BAG_EXPAND_COSTS = {
 GYM_REWARD    = 1500
 ELITE4_REWARD = 10000
 PACK_COST     = 100
-START_TOKENS  = 500
+START_TOKENS  = 0
+
+# Fixed USD prices for packs (oracle converts to token amount at purchase time)
+PACK_PRICES_USD: dict = {"combo": 1.00, "trainer": 0.50, "pokemon": 0.40}
 BURN_COST     = 3  # trainers of same rarity to burn
 
 # ── Kanto Routes (FireRed style, unlocked by badges) ─────────────────────────
