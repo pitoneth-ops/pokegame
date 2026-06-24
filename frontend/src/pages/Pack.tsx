@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, createTransferInstruction, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAddress, createTransferCheckedInstruction, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { useGameStore } from "../store";
 import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo } from "../api";
 import type { Trainer, PokemonPackResult } from "../api";
@@ -236,7 +236,10 @@ export default function Pack() {
       const rawAmount   = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
 
       const tx = new Transaction()
-        .add(createTransferInstruction(playerAta, treasuryAta, publicKey, rawAmount, [], tokenProg));
+        .add(createTransferCheckedInstruction(
+          playerAta, tokenMint, treasuryAta, publicKey,
+          rawAmount, walletInfo.decimals, [], tokenProg,
+        ));
 
       // Let wallet adapter fetch blockhash and sign internally
       const sig = await sendTransaction(tx, connection);
