@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, createTransferInstruction, createAssociatedTokenAccountIdempotentInstruction } from "@solana/spl-token";
+import { getAssociatedTokenAddress, createTransferInstruction } from "@solana/spl-token";
 import { useGameStore } from "../store";
 import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo } from "../api";
 import type { Trainer, PokemonPackResult } from "../api";
@@ -234,9 +234,7 @@ export default function Pack() {
       const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury);
       const rawAmount   = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
 
-      // Always include idempotent ATA creation — no-op if treasury ATA already exists
       const tx = new Transaction()
-        .add(createAssociatedTokenAccountIdempotentInstruction(publicKey, treasuryAta, treasury, tokenMint))
         .add(createTransferInstruction(playerAta, treasuryAta, publicKey, rawAmount));
 
       // Let wallet adapter fetch blockhash and sign internally
