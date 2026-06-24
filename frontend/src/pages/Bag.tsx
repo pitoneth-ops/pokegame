@@ -113,14 +113,14 @@ export default function Bag() {
     setLoading(true);
     try {
       const r = await useStone(playerName, selected, stoneName);
-      setMsg({ text: `${r.old_name} evoluiu para ${r.new_name}! ✨`, ok: true });
+      setMsg({ text: `${r.old_name} evolved into ${r.new_name}! ✨`, ok: true });
       setItems(r.items);
       setBag(r.bag);
       setSelected(null);
       setPickStone(false);
       setPickTrainer(false);
     } catch (e: any) {
-      setMsg({ text: e?.response?.data?.detail ?? "Não é possível evoluir", ok: false });
+      setMsg({ text: e?.response?.data?.detail ?? "Cannot evolve this Pokémon", ok: false });
     } finally { setLoading(false); }
   }
 
@@ -165,7 +165,7 @@ export default function Bag() {
       {/* Stones inventory */}
       {Object.keys(items).filter(k => items[k] > 0).length > 0 && (
         <div className="card" style={{ border: "1px solid rgba(168,85,247,0.3)", background: "rgba(168,85,247,0.04)" }}>
-          <p className="text-xs text-purple-400 font-black mb-3 tracking-wider">🪨 PEDRAS DE EVOLUÇÃO</p>
+          <p className="text-xs text-purple-400 font-black mb-3 tracking-wider">🪨 EVOLUTION STONES</p>
           <div className="flex gap-3 flex-wrap">
             {Object.entries(items).filter(([, count]) => count > 0).map(([name, count]) => {
               const sd = STONE_DATA[name];
@@ -434,7 +434,7 @@ export default function Bag() {
                           </span>
                         )}
                         {canEquip && (
-                          <span className="text-xs text-green-400 font-bold">✓ Disponível</span>
+                          <span className="text-xs text-green-400 font-bold">✓ Available</span>
                         )}
                       </div>
                     </button>

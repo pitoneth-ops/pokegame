@@ -179,7 +179,7 @@ export default function Home() {
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <span className="text-green-400 text-xs font-black">🎫 {player.gym_passes}</span>
-                <span className="text-gray-600 text-xs">passes</span>
+                <span className="text-gray-600 text-xs">tickets</span>
               </div>
             </div>
           )}
