@@ -11,7 +11,8 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 import App from "./App";
 import "./index.css";
 
-const endpoint = "https://api.mainnet-beta.solana.com";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const endpoint = (import.meta as any).env?.VITE_SOLANA_RPC_URL ?? "https://rpc.ankr.com/solana";
 const wallets = [
   new PhantomWalletAdapter(),
   new SolflareWalletAdapter(),
