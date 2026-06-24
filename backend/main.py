@@ -81,7 +81,7 @@ class WithdrawBody(BaseModel):
 class PackPayBody(BaseModel):
     signature: str
     wallet: str
-    quote_id: str
+    quote_id: str = ""  # optional — old clients without quote still work
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -186,22 +186,27 @@ def _cleanup_quotes():
 
 
 def _verify_pack_payment_quote(body: PackPayBody, pack_key: str):
-    from solana_client import verify_deposit_tx
+    from solana_client import verify_deposit_tx, get_token_price_usd
     _cleanup_quotes()
-    quote = _quotes.get(body.quote_id)
-    if not quote:
-        raise HTTPException(400, "quote not found — click the button again to get a fresh price")
-    if time.time() > quote["expires"]:
-        _quotes.pop(body.quote_id, None)
-        raise HTTPException(400, "quote expired — click the button again to get a fresh price")
-    if quote["pack_key"] != pack_key:
-        raise HTTPException(400, "quote mismatch")
-    _quotes.pop(body.quote_id)  # one-use only
+
+    # Verify the on-chain transaction FIRST — tokens never lost even if quote expired
     result = verify_deposit_tx(body.signature, body.wallet)
     if not result["ok"]:
         raise HTTPException(400, result["error"])
-    if result["amount"] < quote["amount"]:
-        raise HTTPException(400, f"sent {result['amount']} $PKG but quote requires {quote['amount']}")
+
+    # Determine required amount: quote → USD fallback → token fallback
+    quote = _quotes.pop(body.quote_id, None) if body.quote_id else None
+    if quote and time.time() <= quote["expires"] and quote["pack_key"] == pack_key:
+        min_tokens = quote["amount"]
+    else:
+        price = get_token_price_usd()
+        if price and price > 0:
+            min_tokens = max(1, int(PACK_PRICES_USD[pack_key] / price * 0.50))  # 50% tolerance
+        else:
+            min_tokens = max(1, _PACK_FALLBACK[pack_key] // 2)
+
+    if result["amount"] < min_tokens:
+        raise HTTPException(400, f"sent {result['amount']} $PKG, need at least {min_tokens}")
 
 
 @app.post("/player/{name}/pack")
