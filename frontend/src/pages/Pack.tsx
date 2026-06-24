@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, createTransferInstruction } from "@solana/spl-token";
+import { getAssociatedTokenAddress, createTransferInstruction, createAssociatedTokenAccountIdempotentInstruction } from "@solana/spl-token";
 import { useGameStore } from "../store";
 import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo } from "../api";
 import type { Trainer, PokemonPackResult } from "../api";
@@ -234,8 +234,11 @@ export default function Pack() {
       const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury);
       const rawAmount  = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
 
+      const createAtaIx = createAssociatedTokenAccountIdempotentInstruction(
+        publicKey, treasuryAta, treasury, tokenMint,
+      );
       const ix  = createTransferInstruction(playerAta, treasuryAta, publicKey, rawAmount);
-      const tx  = new Transaction().add(ix);
+      const tx  = new Transaction().add(createAtaIx).add(ix);
       const sig = await sendTransaction(tx, connection);
 
       setPhase("confirming");
