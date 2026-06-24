@@ -19,7 +19,6 @@ _ASSOC_PROGRAM      = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bGi"
 
 _cached_token_program: str | None = None
 
-
 # ─────────────────────────────────────────────────────────
 # Internal helpers
 # ─────────────────────────────────────────────────────────
@@ -50,25 +49,10 @@ def _rpc(method: str, params: list) -> dict:
     return resp.json()
 
 
-def _detect_token_program() -> str:
-    """Query the mint to find out if it's SPL Token or Token-2022."""
-    try:
-        resp  = _rpc("getAccountInfo", [TOKEN_MINT_STR, {"encoding": "base64"}])
-        owner = resp.get("result", {}).get("value", {}).get("owner", _TOKEN_2022_PROGRAM)
-        prog  = owner if owner in (_TOKEN_PROGRAM, _TOKEN_2022_PROGRAM) else _TOKEN_2022_PROGRAM
-        print(f"[solana] Token program detected: {prog}")
-        return prog
-    except Exception as e:
-        # Default to Token-2022 — we know this mint uses it
-        print(f"[solana] Detection failed, using Token-2022 default: {e}")
-        return _TOKEN_2022_PROGRAM
-
-
 def _get_token_program() -> str:
-    global _cached_token_program
-    if _cached_token_program is None:
-        _cached_token_program = _detect_token_program()
-    return _cached_token_program
+    # TOKEN_MINT_STR (6AVAUKa9ux…) is a Token-2022 mint — hardcoded, no RPC needed.
+    # Override with env var TOKEN_PROGRAM_ID if ever switching to a regular SPL token.
+    return os.getenv("TOKEN_PROGRAM_ID", _TOKEN_2022_PROGRAM)
 
 
 def _get_ata(wallet_str: str, mint_str: str, token_program_str: str | None = None) -> str:
