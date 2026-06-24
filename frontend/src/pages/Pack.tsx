@@ -227,31 +227,23 @@ export default function Pack() {
     setPhase("signing");
 
     try {
-      const cost       = PACK_COSTS[type];
-      const tokenMint  = new PublicKey(walletInfo.mint);
-      const treasury   = new PublicKey(walletInfo.treasury);
-      const playerAta  = await getAssociatedTokenAddress(tokenMint, publicKey);
+      const cost        = PACK_COSTS[type];
+      const tokenMint   = new PublicKey(walletInfo.mint);
+      const treasury    = new PublicKey(walletInfo.treasury);
+      const playerAta   = await getAssociatedTokenAddress(tokenMint, publicKey);
       const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury);
-      const rawAmount  = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
+      const rawAmount   = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
 
-      const ix  = createTransferInstruction(playerAta, treasuryAta, publicKey, rawAmount);
-      const tx  = new Transaction();
+      // Always include idempotent ATA creation — no-op if treasury ATA already exists
+      const tx = new Transaction()
+        .add(createAssociatedTokenAccountIdempotentInstruction(publicKey, treasuryAta, treasury, tokenMint))
+        .add(createTransferInstruction(playerAta, treasuryAta, publicKey, rawAmount));
 
-      // Only create treasury ATA if it doesn't exist yet (first-time setup)
-      const treasuryAtaInfo = await connection.getAccountInfo(treasuryAta);
-      if (!treasuryAtaInfo) {
-        tx.add(createAssociatedTokenAccountIdempotentInstruction(publicKey, treasuryAta, treasury, tokenMint));
-      }
-      tx.add(ix);
-
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = publicKey;
-
-      const sig = await sendTransaction(tx, connection, { minContextSlot: lastValidBlockHeight });
+      // Let wallet adapter fetch blockhash and sign internally
+      const sig = await sendTransaction(tx, connection);
 
       setPhase("confirming");
-      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+      await connection.confirmTransaction(sig, "confirmed");
       setPhase("opening");
 
       const wallet = publicKey.toBase58();
@@ -276,10 +268,16 @@ export default function Pack() {
       }
     } catch (e: unknown) {
       console.error("Pack open error:", e);
-      const axiosDetail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      const jsMessage   = (e as Error)?.message;
-      const msg = axiosDetail ?? jsMessage ?? String(e) ?? "Unknown error";
-      setError(msg.includes("rejected") || msg.includes("cancelled") ? "Transaction cancelled." : msg.slice(0, 200));
+      let msg = "Unknown error";
+      if (e instanceof Error) {
+        msg = e.message;
+      } else if (typeof e === "object" && e !== null) {
+        const obj = e as Record<string, unknown>;
+        const detail = (obj?.response as Record<string, unknown>)?.data as Record<string, unknown>;
+        msg = String(detail?.detail ?? obj.message ?? obj.code ?? JSON.stringify(e));
+      }
+      const cancelled = /rejected|cancelled|4001/i.test(msg);
+      setError(cancelled ? "Transaction cancelled." : msg.slice(0, 300));
       setPhase("idle");
     }
   }
