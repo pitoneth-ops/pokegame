@@ -809,7 +809,7 @@ export default function Battle() {
           <h2 className={`text-4xl font-black ${eliteResult.won ? "text-yellow-400" : "text-red-400"}`}>
             {eliteResult.won ? "CHAMPION!" : "Defeated"}
           </h2>
-          {eliteResult.won && <p className="text-green-400 font-black text-2xl mt-2">+10,000 $PKG</p>}
+          {eliteResult.won && <p className="text-green-400 font-black text-2xl mt-2">+{eliteResult.reward.toLocaleString()} $PKG</p>}
         </div>
 
         <div className="card">

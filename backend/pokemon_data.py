@@ -211,6 +211,8 @@ NPCS = [
     {"id": 4, "name": "Elite Trainer",  "emoji": "🧙", "base_reward": 250},
 ]
 
+NPC_REWARDS_USD = {1: 0.05, 2: 0.20, 3: 0.75, 4: 2.50}
+
 _PS = "https://play.pokemonshowdown.com/sprites/trainers"
 
 TRAINER_CHARS = {

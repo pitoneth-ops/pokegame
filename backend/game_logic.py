@@ -16,6 +16,7 @@ from pokemon_data import (
     GYM_REWARDS_USD, ELITE4_REWARD_USD,
     BAG_EXPAND_COSTS_USD, LEVEL_UNLOCK_COSTS_USD,
     BURN_COSTS_USD, BACKPACK_DROPS_USD, POKEMON_DROP_REWARDS_USD,
+    NPC_REWARDS_USD,
 )
 
 
@@ -495,7 +496,7 @@ def do_battle(player, npc_id: int, trainer, route_id: int = 1) -> dict:
         win_rate = 0.0
     won = random.random() < win_rate
 
-    reward = npc["base_reward"] if won else 0
+    reward = _usd_to_tokens(NPC_REWARDS_USD.get(npc_id, 0.05)) if won else 0
     player.tokens += reward
     if won:
         player.wins   += 1

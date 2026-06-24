@@ -67,10 +67,10 @@ function InfoRow({ label, value, color }: { label: string; value: string; color?
 function SectionStart() {
   const steps = [
     { n: 1, title: "Connect Your Wallet", body: "Your Solana wallet address is your game identity — no account needed. Supports Phantom and Solflare." },
-    { n: 2, title: "Get Your First Pack", body: "Open a Combo Pack (150 $PKG) to receive 1 Trainer + 1 Pokémon already equipped. Earn $PKG by battling NPCs first." },
+    { n: 2, title: "Get Your First Pack", body: "Open a Combo Pack ($7 USD) to receive 1 Trainer + 1 Pokémon already equipped. Pack prices are fixed in USD — token amount is calculated at the live market rate." },
     { n: 3, title: "Battle NPCs", body: "Head to the Arena and battle NPCs to earn $PKG rewards. Each trainer gets a set number of battles per day." },
     { n: 4, title: "Collect Gym Tickets", body: "Gym Tickets drop randomly from NPC battles. Use them to challenge Gym Leaders and earn badges." },
-    { n: 5, title: "Conquer All 8 Gyms", body: "Defeat all 8 Gym Leaders to unlock the Elite Four. Win the Elite Four for a 10,000 $PKG jackpot." },
+    { n: 5, title: "Conquer All 8 Gyms", body: "Defeat all 8 Gym Leaders to unlock the Elite Four. Win the Elite Four for a $1,000 USD reward (paid in $PKG at live rate)." },
   ];
   return (
     <div>
@@ -92,7 +92,7 @@ function SectionStart() {
       </div>
       <Card accent="rgba(20,241,149,0.15)">
         <p className="text-xs text-green-400 font-bold mb-1">💡 Pro Tip</p>
-        <p className="text-gray-400 text-xs">Battle the easiest NPC (Youngster Joey) repeatedly to accumulate $PKG before upgrading. Use the Combo Pack for the best value when starting out.</p>
+        <p className="text-gray-400 text-xs">Battle the easiest NPC (Youngster Joey) repeatedly to accumulate $PKG before upgrading. Use the Combo Pack for the best value when starting out. All rewards and prices are in USD — $PKG token amounts update in real time with the market price.</p>
       </Card>
     </div>
   );
@@ -156,22 +156,22 @@ function SectionBattle() {
       <p className="text-white font-bold text-sm mb-2">NPC Difficulty</p>
       <div className="grid grid-cols-2 gap-2 mb-4">
         {[
-          { name: "Youngster Joey", diff: "Easy",   base: 35, reward: 8,   emoji: "👦" },
-          { name: "Lass Karen",     diff: "Medium", base: 20, reward: 25,  emoji: "👧" },
-          { name: "Biker Mondo",    diff: "Hard",   base: 11, reward: 80,  emoji: "🏍️" },
-          { name: "Elite Trainer",  diff: "Expert", base: 3,  reward: 250, emoji: "🧙" },
+          { name: "Youngster Joey", diff: "Easy",   base: 35, reward: "$0.05", emoji: "👦" },
+          { name: "Lass Karen",     diff: "Medium", base: 20, reward: "$0.20", emoji: "👧" },
+          { name: "Biker Mondo",    diff: "Hard",   base: 11, reward: "$0.75", emoji: "🏍️" },
+          { name: "Elite Trainer",  diff: "Expert", base: 3,  reward: "$2.50", emoji: "🧙" },
         ].map(n => (
           <div key={n.name} className="rounded-xl p-3" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="text-xl mb-1">{n.emoji}</div>
             <p className="font-bold text-white text-xs">{n.name}</p>
             <p className="text-gray-500 text-xs">{n.diff}</p>
             <p className="text-xs mt-1"><span className="text-gray-400">Base win: </span><span className="text-yellow-400 font-bold">{n.base}%</span></p>
-            <p className="text-xs"><span className="text-gray-400">Reward: </span><span className="text-green-400 font-bold">+{n.reward} $PKG</span></p>
+            <p className="text-xs"><span className="text-gray-400">Reward: </span><span className="text-green-400 font-bold">{n.reward} USD</span></p>
           </div>
         ))}
       </div>
 
-      <p className="text-xs text-gray-500 mb-3">* Base win rate is for Common trainers (×1.0). Higher rarities multiply this up before caps.</p>
+      <p className="text-xs text-gray-500 mb-3">* Base win rate is for Common trainers (×1.0). Higher rarities multiply this up before caps. Rewards are in USD — $PKG amount updates with market price.</p>
 
       <Card>
         <p className="font-bold text-white text-sm mb-2">🗺️ Routes</p>
@@ -184,7 +184,7 @@ function SectionBattle() {
           <li>• <span className="text-green-400">Pokémon</span> — added to your Box (hold up to 10 by default)</li>
           <li>• <span className="text-yellow-400">Gym Ticket</span> — required to challenge Gym Leaders</li>
           <li>• <span className="text-purple-400">Evolution Stone</span> — use in Box to evolve eligible Pokémon</li>
-          <li>• <span className="text-orange-400">Backpack</span> — bonus $PKG drop (100 – 15,000 $PKG)</li>
+          <li>• <span className="text-orange-400">Backpack</span> — bonus $PKG drop ($0.50 – $15.00 USD at live rate)</li>
         </ul>
       </Card>
     </div>
@@ -209,8 +209,8 @@ function SectionPokemon() {
         <p className="font-bold text-white text-sm mb-2">🎰 How to Get Pokémon</p>
         <ul className="text-gray-400 text-xs space-y-1">
           <li>• <span className="text-white">Battle drops</span> — random Pokémon from the route's pool</li>
-          <li>• <span className="text-white">Pokémon Pack</span> — 60 $PKG for 1 Pokémon (Lv. 1)</li>
-          <li>• <span className="text-white">Combo Pack</span> — 150 $PKG, includes trainer + type-matched Pokémon</li>
+          <li>• <span className="text-white">Pokémon Pack</span> — $3 USD for 1 Pokémon (Lv. 1)</li>
+          <li>• <span className="text-white">Combo Pack</span> — $7 USD, includes trainer + type-matched Pokémon</li>
           <li>• <span className="text-white">Marketplace</span> — buy specific Pokémon (coming soon)</li>
         </ul>
       </Card>
@@ -293,7 +293,7 @@ function SectionGyms() {
 
       <Card accent="rgba(168,85,247,0.2)">
         <p className="font-black text-purple-300 text-sm mb-2">👑 Elite Four</p>
-        <p className="text-gray-400 text-xs mb-3">Unlock after collecting all 8 badges. Win rate = average of type matchups vs all 4 members × 0.8 + 0.1. Winning gives <strong className="text-green-400">10,000 $PKG</strong> and resets your badges for another cycle.</p>
+        <p className="text-gray-400 text-xs mb-3">Unlock after collecting all 8 badges. Win rate = average of type matchups vs all 4 members × 0.8 + 0.1. Winning gives <strong className="text-green-400">$1,000 USD</strong> (paid in $PKG at the live market rate) and resets your badges for another cycle.</p>
         <div className="grid grid-cols-4 gap-2 text-center">
           {ELITE4.map(m => (
             <div key={m.name} className="rounded-lg p-2" style={{ background: "rgba(168,85,247,0.08)" }}>
@@ -317,16 +317,16 @@ function SectionPacks() {
 
       <div className="space-y-3 mb-4">
         {[
-          { name: "Combo Pack", cost: 150, icon: "✨", color: "#fbbf24", desc: "1 Trainer + 1 type-matched Pokémon already equipped. Best value for new players.", badge: "FEATURED" },
-          { name: "Trainer Pack", cost: 80, icon: "👤", color: "#60a5fa", desc: "1 Trainer only — no Pokémon. Good when you need more trainers for specific types." },
-          { name: "Pokémon Pack", cost: 60, icon: "🐾", color: "#4ade80", desc: "1 Pokémon (Lv. 1) added to your Box. Rarity determines evolution potential." },
+          { name: "Combo Pack", cost: "$7.00", icon: "✨", color: "#fbbf24", desc: "1 Trainer + 1 type-matched Pokémon already equipped. Best value for new players.", badge: "FEATURED" },
+          { name: "Trainer Pack", cost: "$3.00", icon: "👤", color: "#60a5fa", desc: "1 Trainer only — no Pokémon. Good when you need more trainers for specific types." },
+          { name: "Pokémon Pack", cost: "$3.00", icon: "🐾", color: "#4ade80", desc: "1 Pokémon (Lv. 1) added to your Box. Rarity determines evolution potential." },
         ].map(p => (
           <div key={p.name} className="rounded-xl p-3" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${p.color}30` }}>
             <div className="flex items-center gap-2 mb-1">
               <span>{p.icon}</span>
               <span className="font-black text-white">{p.name}</span>
               {p.badge && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: `${p.color}20`, color: p.color }}>{p.badge}</span>}
-              <span className="ml-auto font-black" style={{ color: p.color }}>{p.cost} $PKG</span>
+              <span className="ml-auto font-black" style={{ color: p.color }}>{p.cost} USD</span>
             </div>
             <p className="text-gray-500 text-xs">{p.desc}</p>
           </div>
@@ -358,14 +358,22 @@ function SectionPkg() {
       <SectionTitle icon="💎" title="$PKG Economy" />
       <p className="text-gray-400 text-sm mb-4">$PKG is the in-game token used for everything: packs, upgrades, and withdrawals to your Solana wallet.</p>
 
-      <p className="text-white font-bold text-sm mb-2">Earning $PKG</p>
+      <Card accent="rgba(251,191,36,0.1)">
+        <p className="text-xs text-yellow-400 font-bold mb-2">🔮 Oracle Pricing</p>
+        <p className="text-gray-400 text-xs">All rewards and prices are fixed in USD. The actual $PKG token amount is calculated in real time from the live market price — so values stay consistent in dollar terms regardless of token price volatility.</p>
+      </Card>
+
+      <p className="text-white font-bold text-sm mb-2 mt-4">Earning $PKG</p>
       <Card>
         <div className="space-y-2">
           {[
-            ["NPC Battles",    "8 – 250 $PKG per win", "#4ade80"],
-            ["Gym Leaders",    "1,500 – 5,000 $PKG per win", "#fbbf24"],
-            ["Elite Four",     "10,000 $PKG (champion reward)", "#c084fc"],
-            ["Backpack Drops", "100 – 15,000 $PKG (random)", "#fb923c"],
+            ["NPC Battles",    "$0.05 – $2.50 per win (oracle)", "#4ade80"],
+            ["Gym Leaders",    "$50 – $500 per win (oracle)", "#fbbf24"],
+            ["Gym 1 (Brock)",  "$50 USD reward", "#fbbf24"],
+            ["Gym 8 (Giovanni)","$500 USD reward", "#fbbf24"],
+            ["Elite Four",     "$1,000 USD (champion reward)", "#c084fc"],
+            ["Backpack Drops", "$0.50 – $15.00 (random drop)", "#fb923c"],
+            ["Pokémon Drops",  "$0.20 – $5.00 per Pokémon", "#60a5fa"],
           ].map(([label, value, color]) => (
             <div key={label as string} className="flex justify-between items-center text-sm">
               <span className="text-gray-400">{label}</span>
@@ -379,12 +387,14 @@ function SectionPkg() {
       <Card>
         <div className="space-y-2">
           {[
-            ["Combo Pack",       "150 $PKG"],
-            ["Trainer Pack",     "80 $PKG"],
-            ["Pokémon Pack",     "60 $PKG"],
-            ["Box Expansion",    "200+ $PKG per +5 slots"],
-            ["Level Cap Unlock", "500+ $PKG per tier"],
-            ["Type Swap",        "300 $PKG"],
+            ["Combo Pack",       "$7.00 USD"],
+            ["Trainer Pack",     "$3.00 USD"],
+            ["Pokémon Pack",     "$3.00 USD"],
+            ["Box Expansion",    "$1 → $2 → $4 → $8 USD per +5 slots"],
+            ["Level Cap Unlock", "$3 → $6 → $12 → $24 USD per tier"],
+            ["Burn (Common)",    "$3.00 USD"],
+            ["Burn (Rare)",      "$5.00 USD"],
+            ["Burn (Epic)",      "$10.00 USD"],
           ].map(([label, value]) => (
             <div key={label as string} className="flex justify-between text-sm">
               <span className="text-gray-400">{label}</span>

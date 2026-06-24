@@ -21,7 +21,7 @@ type PackType  = "combo" | "trainer" | "pokemon";
 type Phase     = "idle" | "signing" | "confirming" | "opening" | "reveal_trainer" | "reveal_pokemon";
 
 const PACK_COSTS_FALLBACK: Record<PackType, number> = { combo: 150, trainer: 80, pokemon: 60 };
-const PACK_USD: Record<PackType, number> = { combo: 1.00, trainer: 0.50, pokemon: 0.40 };
+const PACK_USD: Record<PackType, number> = { combo: 7.00, trainer: 3.00, pokemon: 3.00 };
 
 function fmtTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -260,7 +260,7 @@ export default function Pack() {
       // Check on-chain balance via backend
       const balResp = await getWalletBalance(publicKey.toBase58());
       if (balResp.raw < Number(rawAmount)) {
-        setError(`Saldo insuficiente: você tem ${balResp.balance.toFixed(2)} $PKG, precisa de ${fmtTokens(quote.token_amount)} (~$${PACK_USD[type].toFixed(2)}).`);
+        setError(`Insufficient balance: you have ${balResp.balance.toFixed(2)} $PKG, need ${fmtTokens(quote.token_amount)} (~$${PACK_USD[type].toFixed(2)}).`);
         setPhase("idle");
         return;
       }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGameStore } from "../store";
-import { doGym, getPlayer, listTrainers } from "../api";
+import { doGym, getPlayer, listTrainers, getGyms } from "../api";
 import type { Trainer } from "../api";
 import { GymIconLarge, BackpackCommon, BackpackEpic, BackpackLegendary, TypeIcon } from "../components/Icons";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -89,12 +89,20 @@ export default function Gyms() {
   const [battling, setBattling] = useState(false);
   const [gymResult, setGymResult] = useState<{ won: boolean; reward: number; gymName: string; dropped_backpack?: { rarity: string; tokens: number } | null } | null>(null);
   const [confirmGym, setConfirmGym] = useState(false);
+  const [gymRewards, setGymRewards] = useState<Record<number, number>>({});
   const nav = useNavigate();
 
   useEffect(() => {
     if (!playerName) return;
     listTrainers(playerName).then(ts => setActiveTrainer(ts.find(t => t.is_active) ?? ts[0] ?? null));
+    getGyms().then(gyms => {
+      const map: Record<number, number> = {};
+      gyms.forEach(g => { map[g.id] = g.reward; });
+      setGymRewards(map);
+    }).catch(() => {});
   }, [playerName]);
+
+  const getGymReward = (gymId: number, fallback: number) => gymRewards[gymId] ?? fallback;
 
   if (!playerName) return (
     <div className="text-center py-24">
@@ -137,7 +145,7 @@ export default function Gyms() {
         <ConfirmModal
           title={`Challenge ${currentGym.name}?`}
           message={`Use 1 Gym Ticket to battle ${currentGym.name} at ${currentGym.city}?`}
-          detail={`Win rate depends on your trainer type vs ${currentGym.type}. Reward: ${currentGym.reward.toLocaleString()} $PKG + 🏅 Badge.`}
+          detail={`Win rate depends on your trainer type vs ${currentGym.type}. Reward: ${getGymReward(currentGym.id, currentGym.reward).toLocaleString()} $PKG + 🏅 Badge.`}
           confirmLabel="Challenge!"
           onConfirm={() => { setConfirmGym(false); handleGymChallenge(); }}
           onCancel={() => setConfirmGym(false)}
@@ -287,7 +295,7 @@ export default function Gyms() {
 
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-xs text-gray-400">
-                    {earned ? `${gym.reward.toLocaleString()} $PKG` : `${gym.reward.toLocaleString()} $PKG + 🏅`}
+                    {earned ? `${getGymReward(gym.id, gym.reward).toLocaleString()} $PKG` : `${getGymReward(gym.id, gym.reward).toLocaleString()} $PKG + 🏅`}
                   </span>
                   {earned && <span className="text-yellow-400 text-lg badge-earned-icon">{gym.emoji}</span>}
                 </div>

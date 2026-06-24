@@ -21,6 +21,7 @@ from pokemon_data import (
     LEVEL_UNLOCK_COSTS, BAG_EXPAND_COSTS, ROUTES,
     TRAINER_PACK_COST, POKEMON_PACK_COST, COMBO_PACK_COST,
     NPC_SPRITE_POOLS, TYPE_SWAP_COST, PACK_PRICES_USD,
+    GYM_REWARDS_USD, BAG_EXPAND_COSTS_USD, NPC_REWARDS_USD,
 )
 
 app = FastAPI(title="PokeGame API")
@@ -103,11 +104,27 @@ def _active_trainer(player: Player):
     return None
 
 
+def _usd_to_tokens(usd: float) -> int:
+    try:
+        from solana_client import get_token_price_usd
+        price = get_token_price_usd()
+        if price and price > 0:
+            return max(1, round(usd / price))
+    except Exception:
+        pass
+    return max(1, round(usd * 1_000_000))
+
+
 def _player_dict(player: Player) -> dict:
     active  = _active_trainer(player)
     counts  = {r: sum(1 for t in player.trainers if t.rarity == r) for r in RARITY_ORDER}
     gym_idx = player.badges
-    current_gym = GYM_LEADERS_ORDER[gym_idx] if gym_idx < len(GYM_LEADERS_ORDER) else None
+    if gym_idx < len(GYM_LEADERS_ORDER):
+        _g = GYM_LEADERS_ORDER[gym_idx]
+        _reward = _usd_to_tokens(GYM_REWARDS_USD[gym_idx]) if gym_idx < len(GYM_REWARDS_USD) else _g["reward"]
+        current_gym = {**_g, "reward": _reward}
+    else:
+        current_gym = None
     bag_count   = len([x for x in (player.pokemon_bag or "").split(",") if x.strip()])
     return {
         "name":             player.name,
@@ -382,7 +399,7 @@ def get_bag(name: str, db: Session = Depends(get_db)):
         "pokemon":      bag_to_list(player),
         "count":        len(bag_to_list(player)),
         "capacity":     player.bag_capacity or 10,
-        "expand_cost":  BAG_EXPAND_COSTS.get(player.bag_capacity or 10),
+        "expand_cost":  _usd_to_tokens(BAG_EXPAND_COSTS_USD[player.bag_capacity or 10]) if (player.bag_capacity or 10) in BAG_EXPAND_COSTS_USD else None,
     }
 
 
@@ -444,12 +461,18 @@ def expand_bag(name: str, db: Session = Depends(get_db)):
 
 @app.get("/npcs")
 def list_npcs():
-    return NPCS
+    return [
+        {**npc, "base_reward": _usd_to_tokens(NPC_REWARDS_USD.get(npc["id"], 0.05))}
+        for npc in NPCS
+    ]
 
 
 @app.get("/gyms")
 def list_gyms():
-    return GYM_LEADERS_ORDER
+    return [
+        {**gym, "reward": _usd_to_tokens(GYM_REWARDS_USD[i]) if i < len(GYM_REWARDS_USD) else gym["reward"]}
+        for i, gym in enumerate(GYM_LEADERS_ORDER)
+    ]
 
 
 @app.get("/routes")
