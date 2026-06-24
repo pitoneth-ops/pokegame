@@ -295,6 +295,36 @@ export function IconPokedex({ size = 20, className = "" }: P) {
   );
 }
 
+// ── Wiki — open book ─────────────────────────────────────────────────────────
+export function IconWiki({ size = 20, className = "" }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M4 4h7a2 2 0 0 1 2 2v13a1.5 1.5 0 0 0-1.5-1.5H4V4z" fill="currentColor" opacity=".9"/>
+      <path d="M20 4h-7a2 2 0 0 0-2 2v13a1.5 1.5 0 0 1 1.5-1.5H20V4z" fill="currentColor" opacity=".6"/>
+      <line x1="12" y1="6" x2="12" y2="19" stroke="white" strokeWidth="1" opacity=".4"/>
+      <rect x="6" y="7"  width="4" height="1.2" rx=".6" fill="white" opacity=".5"/>
+      <rect x="6" y="10" width="4" height="1.2" rx=".6" fill="white" opacity=".5"/>
+      <rect x="6" y="13" width="3" height="1.2" rx=".6" fill="white" opacity=".5"/>
+      <rect x="14" y="7"  width="4" height="1.2" rx=".6" fill="white" opacity=".35"/>
+      <rect x="14" y="10" width="4" height="1.2" rx=".6" fill="white" opacity=".35"/>
+      <rect x="14" y="13" width="3" height="1.2" rx=".6" fill="white" opacity=".35"/>
+    </svg>
+  );
+}
+
+// ── Marketplace — shop tag ───────────────────────────────────────────────────
+export function IconMarketplace({ size = 20, className = "" }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M3 6h18l-2 9H5L3 6z" fill="currentColor" opacity=".85"/>
+      <path d="M1 3h3l2 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      <circle cx="9"  cy="19" r="1.5" fill="currentColor"/>
+      <circle cx="17" cy="19" r="1.5" fill="currentColor"/>
+      <path d="M8 10h8M10 7.5v5M14 7.5v5" stroke="white" strokeWidth="1.3" strokeLinecap="round" opacity=".6"/>
+    </svg>
+  );
+}
+
 // ── Box — Pokemon bag (image 2 style: rounded backpack) ──────────────────────
 export function IconBox({ size = 20, className = "" }: P) {
   return (

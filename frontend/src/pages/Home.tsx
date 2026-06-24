@@ -1,8 +1,109 @@
+import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useGameStore } from "../store";
 
 const PS = "https://play.pokemonshowdown.com/sprites/trainers";
+
+function WithdrawModal({ balance, onClose }: { balance: number; onClose: () => void }) {
+  const [amount, setAmount] = useState("");
+  const requested = Math.min(Number(amount) || 0, balance);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+         onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-sm rounded-2xl overflow-hidden animate-slide-up"
+           style={{ background: "#0c0c18", border: "1px solid rgba(20,241,149,0.3)", boxShadow: "0 0 40px rgba(20,241,149,0.15)" }}>
+
+        {/* Header */}
+        <div className="px-5 py-4" style={{ background: "linear-gradient(90deg,rgba(20,241,149,0.12),rgba(153,69,255,0.08))", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-black text-white text-lg">↑ Withdraw $PKG</h3>
+              <p className="text-gray-500 text-xs mt-0.5">Move tokens to your Solana wallet</p>
+            </div>
+            <button onClick={onClose} className="text-gray-600 hover:text-white text-xl transition-colors">✕</button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Balance display */}
+          <div className="rounded-xl p-3 flex items-center justify-between"
+               style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
+            <span className="text-gray-400 text-sm">In-game balance</span>
+            <span className="font-black text-yellow-400 text-lg">{balance.toLocaleString()} $PKG</span>
+          </div>
+
+          {/* Amount input */}
+          <div>
+            <label className="text-gray-400 text-xs font-bold block mb-1.5">Amount to withdraw</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="1"
+                max={balance}
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="0"
+                className="flex-1 rounded-xl px-4 py-3 text-white font-bold text-lg bg-transparent"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", outline: "none" }}
+              />
+              <button
+                onClick={() => setAmount(String(balance))}
+                className="px-3 py-2 rounded-xl text-xs font-bold transition-colors"
+                style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", color: "#fbbf24" }}
+              >
+                MAX
+              </button>
+            </div>
+          </div>
+
+          {/* Coming soon notice */}
+          <div className="rounded-xl p-3" style={{ background: "rgba(153,69,255,0.08)", border: "1px solid rgba(153,69,255,0.2)" }}>
+            <div className="flex items-start gap-2">
+              <span className="text-purple-400 mt-0.5">🔮</span>
+              <div>
+                <p className="text-purple-300 font-bold text-xs">On-chain settlement coming soon</p>
+                <p className="text-gray-500 text-xs mt-1">
+                  Withdrawals will be processed as real $PKG SPL token transfers to your connected Solana wallet. Feature launching with the token.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* How it works */}
+          <div className="space-y-2">
+            {[
+              ["1", "Enter the amount of $PKG to withdraw"],
+              ["2", "Confirm the transaction in your wallet"],
+              ["3", "$PKG arrives in your wallet in seconds"],
+            ].map(([n, t]) => (
+              <div key={n} className="flex items-center gap-3 text-xs text-gray-500">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center font-black flex-shrink-0"
+                     style={{ background: "rgba(20,241,149,0.1)", border: "1px solid rgba(20,241,149,0.2)", color: "#14f195", fontSize: 10 }}>{n}</div>
+                {t}
+              </div>
+            ))}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose} className="btn-gray flex-1">Cancel</button>
+            <button
+              disabled
+              className="flex-1 py-3 rounded-xl font-black text-sm opacity-50 cursor-not-allowed"
+              style={{ background: "linear-gradient(135deg,rgba(20,241,149,0.2),rgba(153,69,255,0.2))", border: "1px solid rgba(20,241,149,0.3)", color: "#14f195" }}
+            >
+              Withdraw · {requested > 0 ? `${requested.toLocaleString()} $PKG` : "—"}
+            </button>
+          </div>
+          <p className="text-center text-gray-700 text-xs">Launch required to activate withdrawals</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const GYM_LEADERS_DATA = [
   { name: "Brock",     sprite: `${PS}/brock.png`,    emoji: "🪨", badge: "Boulder"  },
@@ -19,6 +120,7 @@ export default function Home() {
   const { playerName, player } = useGameStore();
   const { connected, connecting } = useWallet();
   const { setVisible } = useWalletModal();
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   if (playerName && player) {
     const badges = player.badges ?? 0;
@@ -32,6 +134,7 @@ export default function Home() {
 
     return (
       <div className="space-y-5 animate-fade-in">
+        {withdrawOpen && <WithdrawModal balance={player.tokens} onClose={() => setWithdrawOpen(false)} />}
 
         {/* ── GBA TRAINER CARD ── */}
         <div style={{
@@ -80,6 +183,22 @@ export default function Home() {
                   {player.tokens.toLocaleString()} $PKG
                 </div>
               </div>
+
+              <div style={{ borderTop: "1px solid rgba(200,230,255,0.25)", marginBottom: 10 }} />
+
+              {/* Withdraw button */}
+              <button
+                onClick={() => setWithdrawOpen(true)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: "rgba(20,241,149,0.1)", border: "1px solid rgba(20,241,149,0.25)",
+                  borderRadius: 6, padding: "3px 10px", cursor: "pointer",
+                  fontFamily: "'Press Start 2P', monospace", fontSize: 7,
+                  color: "#14f195", letterSpacing: 1, marginBottom: 10,
+                }}
+              >
+                <span style={{ fontSize: 9 }}>↑</span> WITHDRAW $PKG
+              </button>
 
               <div style={{ borderTop: "1px solid rgba(200,230,255,0.25)", marginBottom: 10 }} />
 

@@ -4,7 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useGameStore } from "./store";
 import { getPlayer, createPlayer } from "./api";
-import { IconHome, IconPack, IconTrainer, IconGym, IconTypes, IconBattle, IconBox, IconPvp, IconAchievements, IconPokedex } from "./components/Icons";
+import { IconHome, IconPack, IconTrainer, IconGym, IconTypes, IconBattle, IconBox, IconPvp, IconAchievements, IconPokedex, IconWiki, IconMarketplace } from "./components/Icons";
 import Home from "./pages/Home";
 import Pack from "./pages/Pack";
 import MyTrainers from "./pages/MyPokemon";
@@ -13,18 +13,21 @@ import Gyms from "./pages/Gyms";
 import Types from "./pages/Types";
 import Bag from "./pages/Bag";
 import Pokedex from "./pages/Pokedex";
+import Wiki from "./pages/Wiki";
 
 const NAV_ITEMS = [
-  { to: "/",         label: "Home",         Icon: IconHome,         locked: false },
-  { to: "/pack",     label: "Pack",          Icon: IconPack,         locked: false },
-  { to: "/trainers", label: "Trainers",      Icon: IconTrainer,      locked: false },
-  { to: "/gyms",     label: "Gyms",          Icon: IconGym,          locked: false },
-  { to: "/types",    label: "Types",         Icon: IconTypes,        locked: false },
-  { to: "/battle",   label: "Battle",        Icon: IconBattle,       locked: false },
-  { to: "/bag",      label: "Box",           Icon: IconBox,          locked: false },
-  { to: "/pokedex",  label: "Pokédex",       Icon: IconPokedex,      locked: false },
-  { to: "/pvp",      label: "PvP",           Icon: IconPvp,          locked: true  },
-  { to: "/achievements", label: "Medals",    Icon: IconAchievements, locked: true  },
+  { to: "/",            label: "Profile",    Icon: IconHome,         locked: false },
+  { to: "/pack",        label: "Pack",       Icon: IconPack,         locked: false },
+  { to: "/trainers",    label: "Trainers",   Icon: IconTrainer,      locked: false },
+  { to: "/battle",      label: "Battle",     Icon: IconBattle,       locked: false },
+  { to: "/bag",         label: "Box",        Icon: IconBox,          locked: false },
+  { to: "/gyms",        label: "Gyms",       Icon: IconGym,          locked: false },
+  { to: "/pokedex",     label: "Pokédex",    Icon: IconPokedex,      locked: false },
+  { to: "/types",       label: "Types",      Icon: IconTypes,        locked: false },
+  { to: "/wiki",        label: "Wiki",       Icon: IconWiki,         locked: false },
+  { to: "/marketplace", label: "Market",     Icon: IconMarketplace,  locked: true  },
+  { to: "/pvp",         label: "PvP",        Icon: IconPvp,          locked: true  },
+  { to: "/achievements",label: "Medals",     Icon: IconAchievements, locked: true  },
 ];
 
 function ComingSoon({ label }: { label: string }) {
@@ -178,6 +181,8 @@ export default function App() {
           <Route path="/battle"       element={<Battle />} />
           <Route path="/bag"          element={<Bag />} />
           <Route path="/pokedex"      element={<Pokedex />} />
+          <Route path="/wiki"         element={<Wiki />} />
+          <Route path="/marketplace"  element={<ComingSoon label="Marketplace" />} />
           <Route path="/pvp"          element={<ComingSoon label="PvP Battles" />} />
           <Route path="/achievements" element={<ComingSoon label="Achievements" />} />
         </Routes>
