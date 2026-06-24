@@ -13,7 +13,7 @@ const NPC_SPRITE_POOLS: Record<number, string[]> = {
   1: [`${PS}/youngster.png`, `${PS}/bugcatcher.png`, `${PS}/camper.png`,    `${PS}/picnicker.png`],
   2: [`${PS}/lass.png`,      `${PS}/guitarist.png`,  `${PS}/rocker.png`,    `${PS}/sailor.png`,   `${PS}/fisherman.png`],
   3: [`${PS}/hiker.png`,     `${PS}/channeler.png`,  `${PS}/birdkeeper.png`,`${PS}/scientist.png`],
-  4: [`${PS}/cooltrainerm.png`, `${PS}/cooltrainerf.png`, `${PS}/brock.png`, `${PS}/misty.png`, `${PS}/surge.png`],
+  4: [`${PS}/cooltrainerm.png`, `${PS}/cooltrainerf.png`, `${PS}/brock.png`, `${PS}/misty.png`, `${PS}/lt-surge.png`],
 };
 function randomNpcSprites(npcList: { id: number }[]): Record<number, string> {
   const out: Record<number, string> = {};

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGameStore } from "../store";
-import { listTrainers, activateTrainer, burnTrainers, buyPokemon, unlockLevelTier, getPlayer, unequipToBag, swapTrainerType } from "../api";
+import { listTrainers, activateTrainer, burnTrainers, unlockLevelTier, getPlayer, unequipToBag, swapTrainerType, getPackPrices } from "../api";
 import type { Trainer, Rarity } from "../api";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { TypeIcon } from "../components/Icons";
@@ -94,10 +94,18 @@ function TypeSwapModal({
   onConfirm: (newType: string) => void;
   onCancel: () => void;
 }) {
-  const [selected, setSelected] = useState(trainer.trainer_type);
+  const [selected, setSelected]         = useState(trainer.trainer_type);
+  const [costTokens, setCostTokens]     = useState<number | null>(null);
   const types = trainer.rarity === "legendary" ? ALL_TYPES_LEGENDARY : ALL_TYPES;
-  const cost = 300;
-  const canAfford = playerTokens >= cost;
+
+  useEffect(() => {
+    getPackPrices()
+      .then(p => { if (p.swap_type_cost_tokens != null) setCostTokens(p.swap_type_cost_tokens); })
+      .catch(() => {});
+  }, []);
+
+  const canAfford  = costTokens == null || playerTokens >= costTokens;
+  const costLabel  = costTokens != null ? `~${costTokens.toLocaleString()} $PKG` : "…";
 
   return (
     <div
@@ -116,8 +124,9 @@ function TypeSwapModal({
               {trainer.char?.name ?? trainer.label} · Current: <span style={{ color: TYPE_COLOR[trainer.trainer_type] }}>{trainer.trainer_type}</span>
             </p>
           </div>
-          <div style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 8, padding: "4px 10px" }}>
-            <span className="font-black text-yellow-400 text-sm">{cost} $PKG</span>
+          <div style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, padding: "4px 10px", textAlign: "right" }}>
+            <div className="font-black text-white text-xs">$1.00 USD</div>
+            <div className="text-indigo-400 text-[10px]">{costLabel}</div>
           </div>
         </div>
 
@@ -142,7 +151,7 @@ function TypeSwapModal({
                 opacity: t === trainer.trainer_type ? 0.5 : 1,
               }}
             >
-              {t}
+              {TYPE_EMOJI[t]} {t}
               {t === trainer.trainer_type && <span className="block text-[9px] opacity-50">current</span>}
             </button>
           ))}
@@ -155,7 +164,7 @@ function TypeSwapModal({
             disabled={selected === trainer.trainer_type || !canAfford || trainer.pokemon_count > 0}
             onClick={() => onConfirm(selected)}
           >
-            {!canAfford ? "Not enough tokens" : `Swap → ${selected}`}
+            {!canAfford ? "Not enough tokens" : trainer.pokemon_count > 0 ? "Remove Pokémon first" : `Swap → ${selected}`}
           </button>
         </div>
       </div>
@@ -169,16 +178,15 @@ interface ConfirmState {
 }
 
 function TrainerCard({
-  t, onActivate, onBuyPokemon, onUnlockLevel, onUnequip, onSwapType,
-  buying, unlocking, unequipping, playerTokens,
+  t, onActivate, onUnlockLevel, onUnequip, onSwapType,
+  unlocking, unequipping, playerTokens,
 }: {
   t: Trainer;
   onActivate: (id: number) => void;
-  onBuyPokemon: (id: number) => void;
   onUnlockLevel: (id: number) => void;
   onUnequip: (tid: number, pIdx: number) => void;
   onSwapType: (trainer: Trainer) => void;
-  buying: boolean; unlocking: boolean; unequipping: boolean;
+  unlocking: boolean; unequipping: boolean;
   playerTokens: number;
 }) {
   const borderColor = RARITY_BORDER_COLOR[t.rarity];
@@ -313,12 +321,18 @@ function TrainerCard({
         </button>
 
         <button
-          onClick={() => onSwapType(t)}
+          onClick={() => t.pokemon_count === 0 && onSwapType(t)}
           disabled={t.pokemon_count > 0}
-          title={t.pokemon_count > 0 ? "Remove all Pokémon first" : "Change type specialization (300 tokens)"}
-          className="w-full text-xs py-2 rounded-xl font-bold transition-all disabled:opacity-40"
-          style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", color: "#818cf8" }}>
-          🔄 Swap Type · 300 $PKG
+          className="w-full text-xs py-2 rounded-xl font-bold transition-all"
+          style={{
+            background: t.pokemon_count > 0 ? "rgba(255,255,255,0.03)" : "rgba(99,102,241,0.12)",
+            border: `1px solid ${t.pokemon_count > 0 ? "rgba(255,255,255,0.06)" : "rgba(99,102,241,0.3)"}`,
+            color: t.pokemon_count > 0 ? "#374151" : "#818cf8",
+            cursor: t.pokemon_count > 0 ? "not-allowed" : "pointer",
+          }}>
+          {t.pokemon_count > 0
+            ? "🔒 Remove Pokémon to swap type"
+            : "🔄 Swap Type · $1.00"}
         </button>
 
         {t.next_unlock_cap !== null && t.next_unlock_cost !== null && (
@@ -328,16 +342,6 @@ function TrainerCard({
             className="w-full text-xs py-2 rounded-xl font-bold transition-all disabled:opacity-50"
             style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.25)", color: "#c084fc" }}>
             🔓 Unlock Lv.{t.max_level_unlocked + 1}–{t.next_unlock_cap} · {t.next_unlock_cost.toLocaleString()} $PKG
-          </button>
-        )}
-
-        {t.pokemon_count < t.pokemon_slots && (
-          <button
-            onClick={() => onBuyPokemon(t.id)}
-            disabled={buying}
-            className="w-full text-xs py-2 rounded-xl font-bold transition-all disabled:opacity-50"
-            style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.25)", color: "#60a5fa" }}>
-            🛒 Buy Pokémon · 400 $PKG
           </button>
         )}
       </div>
@@ -351,7 +355,6 @@ export default function MyTrainers() {
   const [filter, setFilter]           = useState<string>("all");
   const [loading, setLoading]         = useState(true);
   const [burning, setBurning]         = useState(false);
-  const [buying, setBuying]           = useState(false);
   const [unlocking, setUnlocking]     = useState(false);
   const [unequipping, setUnequipping] = useState(false);
   const [swapping, setSwapping]       = useState(false);
@@ -446,29 +449,6 @@ export default function MyTrainers() {
     } catch (e: any) {
       setMsg({ text: e?.response?.data?.detail ?? "Error", ok: false });
     } finally { setUnequipping(false); }
-  }
-
-  function askBuyPokemon(tid: number, trainerType: string) {
-    setConfirm({
-      title: "Buy Pokémon",
-      message: `Buy a ${trainerType}-type Pokémon for this trainer?`,
-      detail: "Cost: 400 $PKG",
-      confirmLabel: "Buy",
-      action: () => executeBuyPokemon(tid),
-    });
-  }
-
-  async function executeBuyPokemon(tid: number) {
-    if (!playerName) return;
-    setConfirm(null); setBuying(true); setMsg(null);
-    try {
-      const res = await buyPokemon(playerName, tid);
-      setMsg({ text: `Pokémon added! (${res.pokemon_count}/6) · Cooldown: ${res.cooldown_hours.toFixed(1)}h`, ok: true });
-      const [list, p] = await Promise.all([listTrainers(playerName), getPlayer(playerName)]);
-      setTrainers(list); setPlayer(p);
-    } catch (e: any) {
-      setMsg({ text: e?.response?.data?.detail ?? "Error", ok: false });
-    } finally { setBuying(false); }
   }
 
   function handleSwapTypeOpen(trainer: Trainer) {
@@ -629,10 +609,6 @@ export default function MyTrainers() {
               key={t.id}
               t={t}
               onActivate={handleActivate}
-              onBuyPokemon={(id) => {
-                const tr = trainers.find(x => x.id === id);
-                if (tr) askBuyPokemon(id, tr.trainer_type);
-              }}
               onUnlockLevel={(id) => {
                 const tr = trainers.find(x => x.id === id);
                 if (tr && tr.next_unlock_cost && tr.next_unlock_cap)
@@ -644,7 +620,6 @@ export default function MyTrainers() {
                 askUnequip(tid, pIdx, pok?.name ?? "Pokémon");
               }}
               onSwapType={handleSwapTypeOpen}
-              buying={buying}
               unlocking={unlocking}
               unequipping={unequipping}
               playerTokens={player?.tokens ?? 0}

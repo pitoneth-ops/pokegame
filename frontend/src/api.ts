@@ -280,6 +280,8 @@ export interface PackPrices {
   price_usd: number | null;
   pack_prices_usd: Record<"combo" | "trainer" | "pokemon", number>;
   pack_prices_tokens: Record<"combo" | "trainer" | "pokemon", number>;
+  swap_type_cost_usd: number;
+  swap_type_cost_tokens: number | null;
   oracle: "live" | "unavailable";
 }
 

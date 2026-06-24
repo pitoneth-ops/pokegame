@@ -137,7 +137,7 @@ function WithdrawModal({
 const GYM_LEADERS_DATA = [
   { name: "Brock",     sprite: `${PS}/brock.png`,    emoji: "🪨", badge: "Boulder"  },
   { name: "Misty",     sprite: `${PS}/misty.png`,    emoji: "💧", badge: "Cascade"  },
-  { name: "Lt. Surge", sprite: `${PS}/surge.png`,    emoji: "⚡", badge: "Thunder"  },
+  { name: "Lt. Surge", sprite: `${PS}/lt-surge.png`, emoji: "⚡", badge: "Thunder"  },
   { name: "Erika",     sprite: `${PS}/erika.png`,    emoji: "🌿", badge: "Rainbow"  },
   { name: "Koga",      sprite: `${PS}/koga.png`,     emoji: "☠️", badge: "Soul"     },
   { name: "Sabrina",   sprite: `${PS}/sabrina.png`,  emoji: "🔮", badge: "Marsh"    },

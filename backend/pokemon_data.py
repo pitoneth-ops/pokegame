@@ -715,7 +715,8 @@ COMBO_PACK_COST   = 150   # trainer + matched Pokémon
 TRAINER_PACK_COST = 80    # trainer only, no Pokémon
 POKEMON_PACK_COST = 60    # Pokémon only → goes to bag
 
-TYPE_SWAP_COST = 300      # tokens to change trainer specialization
+TYPE_SWAP_COST     = 300  # legacy fallback (tokens)
+TYPE_SWAP_COST_USD = 1.0  # oracle price ($)
 
 # NPC opponent sprite pools — frontend picks one randomly and re-rolls after each battle
 NPC_SPRITE_POOLS: dict[int, list[str]] = {

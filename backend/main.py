@@ -540,18 +540,23 @@ def get_pack_quote(pack_key: str):
 @app.get("/market/price")
 def market_price():
     from solana_client import get_token_price_usd
+    from pokemon_data import TYPE_SWAP_COST_USD
     price = get_token_price_usd()
     if price and price > 0:
         return {
             "price_usd": price,
             "pack_prices_usd": PACK_PRICES_USD,
             "pack_prices_tokens": {k: max(1, int(v / price)) for k, v in PACK_PRICES_USD.items()},
+            "swap_type_cost_usd": TYPE_SWAP_COST_USD,
+            "swap_type_cost_tokens": max(1, round(TYPE_SWAP_COST_USD / price)),
             "oracle": "live",
         }
     return {
         "price_usd": None,
         "pack_prices_usd": PACK_PRICES_USD,
         "pack_prices_tokens": _PACK_FALLBACK,
+        "swap_type_cost_usd": TYPE_SWAP_COST_USD,
+        "swap_type_cost_tokens": None,
         "oracle": "unavailable",
     }
 

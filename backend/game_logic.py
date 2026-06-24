@@ -12,7 +12,7 @@ from pokemon_data import (
     POKEMON_SLOT_MILESTONES, LEVEL_UNLOCK_COSTS, BAG_EXPAND_COSTS,
     ROUTES, STONE_EVOLUTIONS, STONE_DATA,
     TRAINER_PACK_COST, POKEMON_PACK_COST, COMBO_PACK_COST,
-    TYPE_SWAP_COST, POKEMON_PACK_POOLS,
+    TYPE_SWAP_COST, TYPE_SWAP_COST_USD, POKEMON_PACK_POOLS,
     GYM_REWARDS_USD, ELITE4_REWARD_USD,
     BAG_EXPAND_COSTS_USD, LEVEL_UNLOCK_COSTS_USD,
     BURN_COSTS_USD, BACKPACK_DROPS_USD, POKEMON_DROP_REWARDS_USD,
@@ -459,9 +459,10 @@ def do_swap_type(player, trainer, new_type: str) -> dict:
     """Change trainer's type specialization. Requires empty Pokémon slots."""
     if (trainer.pokemon_ids or "").strip():
         return {"error": "Remove all Pokémon from this trainer before swapping type"}
-    if player.tokens < TYPE_SWAP_COST:
-        return {"error": f"Not enough tokens (need {TYPE_SWAP_COST})"}
-    player.tokens -= TYPE_SWAP_COST
+    cost = _usd_to_tokens(TYPE_SWAP_COST_USD)
+    if player.tokens < cost:
+        return {"error": f"Not enough tokens (need {cost:,} $PKG for $1.00)"}
+    player.tokens -= cost
     trainer.trainer_type = new_type
     return {"ok": True, "tokens": player.tokens, "new_type": new_type}
 

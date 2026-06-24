@@ -11,7 +11,7 @@ const PS = "https://play.pokemonshowdown.com/sprites/trainers";
 const GYM_LEADERS = [
   { id: 1, name: "Brock",     city: "Pewter City",    type: "Rock",     emoji: "🪨", reward: 1500, badge: "Boulder",  sprite: `${PS}/brock.png`,    desc: "Rock-type specialist. His defense is impenetrable." },
   { id: 2, name: "Misty",     city: "Cerulean City",  type: "Water",    emoji: "💧", reward: 2000, badge: "Cascade",  sprite: `${PS}/misty.png`,    desc: "The Cerulean girl who commands water with elegance and power." },
-  { id: 3, name: "Lt. Surge", city: "Vermilion City", type: "Electric", emoji: "⚡", reward: 2500, badge: "Thunder",  sprite: `${PS}/surge.png`,    desc: "War veteran who uses Electric-types with military discipline." },
+  { id: 3, name: "Lt. Surge", city: "Vermilion City", type: "Electric", emoji: "⚡", reward: 2500, badge: "Thunder",  sprite: `${PS}/lt-surge.png`, desc: "War veteran who uses Electric-types with military discipline." },
   { id: 4, name: "Erika",     city: "Celadon City",   type: "Grass",    emoji: "🌿", reward: 3000, badge: "Rainbow",  sprite: `${PS}/erika.png`,    desc: "A gentle leader who commands Grass-types with natural grace." },
   { id: 5, name: "Koga",      city: "Fuchsia City",   type: "Poison",   emoji: "☠️", reward: 3500, badge: "Soul",     sprite: `${PS}/koga.png`,     desc: "Ninja master who uses Poison-types and guerrilla tactics." },
   { id: 6, name: "Sabrina",   city: "Saffron City",   type: "Psychic",  emoji: "🔮", reward: 4000, badge: "Marsh",    sprite: `${PS}/sabrina.png`,  desc: "Legendary psychic who can foresee the enemy's every move." },
@@ -70,6 +70,19 @@ function getMatchup(attacker: string, defender: string): number {
   if (SUPER_EFF[attacker]?.includes(defender)) return 0.9;
   if (NOT_EFF[attacker]?.includes(defender)) return 0.1;
   return 0.5;
+}
+
+function SpriteOrEmoji({ src, alt, emoji, grayscale }: { src: string; alt: string; emoji: string; grayscale?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return <div className={`text-5xl py-1 mx-auto ${grayscale ? "grayscale opacity-40" : ""}`}>{emoji}</div>;
+  }
+  return (
+    <img src={src} alt={alt}
+         className={`h-16 w-auto mx-auto mb-1 ${grayscale ? "grayscale opacity-40" : ""}`}
+         style={{ imageRendering: "pixelated" }}
+         onError={() => setFailed(true)} />
+  );
 }
 
 function TypeBadge({ type }: { type: string }) {
@@ -346,10 +359,12 @@ export default function Gyms() {
               return (
                 <div key={i} className="rounded-xl p-3 text-center"
                      style={{ background: TYPE_BG[m.type], border: `1px solid ${TYPE_BORDER[m.type]}30` }}>
-                  <img src={m.sprite} alt={m.name}
-                       className={`h-16 w-auto mx-auto mb-1 ${!elite4Available ? "grayscale" : ""}`}
-                       style={{ imageRendering: "pixelated" }}
-                       onError={e => { (e.currentTarget as HTMLImageElement).textContent = m.emoji; }} />
+                  <SpriteOrEmoji
+                    src={m.sprite}
+                    alt={m.name}
+                    emoji={m.emoji}
+                    grayscale={!elite4Available}
+                  />
                   <p className="font-black text-white text-sm">{m.name}</p>
                   <TypeBadge type={m.type} />
                   {activeTrainer && elite4Available && (
