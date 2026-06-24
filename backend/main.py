@@ -75,7 +75,7 @@ class SwapTypeBody(BaseModel):
 def _get_player(name: str, db: Session) -> Player:
     p = db.query(Player).filter(Player.name == name).first()
     if not p:
-        raise HTTPException(404, "jogador não encontrado")
+        raise HTTPException(404, "player not found")
     return p
 
 
@@ -120,7 +120,7 @@ def _player_dict(player: Player) -> dict:
 @app.post("/player/create")
 def create_player(body: CreateBody, db: Session = Depends(get_db)):
     if db.query(Player).filter(Player.name == body.name).first():
-        raise HTTPException(400, "nome já existe")
+        raise HTTPException(400, "name already exists")
     player = Player(name=body.name, tokens=START_TOKENS)
     db.add(player)
     db.commit()
@@ -156,7 +156,7 @@ def open_pack(name: str, db: Session = Depends(get_db)):
     player = _get_player(name, db)
     cost = COMBO_PACK_COST
     if player.tokens < cost:
-        raise HTTPException(400, f"tokens insuficientes (precisa {cost})")
+        raise HTTPException(400, f"not enough tokens (need {cost})")
     player.tokens -= cost
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
@@ -171,7 +171,7 @@ def open_trainer_pack_endpoint(name: str, db: Session = Depends(get_db)):
     """Trainer-only pack — no Pokémon assigned."""
     player = _get_player(name, db)
     if player.tokens < TRAINER_PACK_COST:
-        raise HTTPException(400, f"tokens insuficientes (precisa {TRAINER_PACK_COST})")
+        raise HTTPException(400, f"not enough tokens (need {TRAINER_PACK_COST})")
     player.tokens -= TRAINER_PACK_COST
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)

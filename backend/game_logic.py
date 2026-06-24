@@ -349,11 +349,11 @@ def _try_drop_backpack(player) -> dict | None:
 def do_use_stone(player, bag_index: int, stone_name: str) -> dict:
     items = get_items_dict(player)
     if items.get(stone_name, 0) <= 0:
-        return {"error": f"você não tem {stone_name}"}
+        return {"error": f"you don't have {stone_name}"}
 
     bag = _bag_entries(player)
     if bag_index < 0 or bag_index >= len(bag):
-        return {"error": "índice inválido na box"}
+        return {"error": "invalid index in box"}
 
     entry   = bag[bag_index]
     old_id  = entry["id"]
@@ -361,7 +361,7 @@ def do_use_stone(player, bag_index: int, stone_name: str) -> dict:
     new_id  = evo_map.get(old_id)
     if new_id is None:
         old_p = POKEMON_DATA.get(old_id, {})
-        return {"error": f"{old_p.get('name', '?')} não evolui com {stone_name}"}
+        return {"error": f"{old_p.get('name', '?')} cannot evolve with {stone_name}"}
 
     entry["id"] = new_id
     bag[bag_index] = entry
@@ -389,7 +389,7 @@ def open_trainer_pack(player, db_add_fn) -> dict:
     """Trainer pack: costs TRAINER_PACK_COST, gives trainer with NO Pokémon."""
     from pokemon_data import TRAINER_PACK_COST as COST
     if player.tokens < COST:
-        return {"error": f"tokens insuficientes (precisa {COST})"}
+        return {"error": f"not enough tokens (need {COST})"}
     player.tokens -= COST
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
@@ -401,12 +401,12 @@ def open_pokemon_pack(player) -> dict:
     """Pokemon pack: costs POKEMON_PACK_COST, gives a Pokémon at Lv 1 in bag."""
     from pokemon_data import POKEMON_PACK_COST as COST
     if player.tokens < COST:
-        return {"error": f"tokens insuficientes (precisa {COST})"}
+        return {"error": f"not enough tokens (need {COST})"}
 
     bag = _bag_entries(player)
     cap = player.bag_capacity or 10
     if len(bag) >= cap:
-        return {"error": "box cheia — expanda ou solte um Pokémon"}
+        return {"error": "box is full — expand it or release a Pokémon"}
 
     player.tokens -= COST
     rarity = roll_trainer_rarity()
@@ -450,11 +450,11 @@ def do_battle(player, npc_id: int, trainer, route_id: int = 1) -> dict:
         mins = minutes_until_reset(trainer)
         h, m = divmod(mins, 60)
         per  = _battles_per_day(trainer.rarity)
-        return {"error": f"sem batalhas disponíveis ({per}/dia) — reset em {h}h {m}min"}
+        return {"error": f"no battles available ({per}/day) — resets in {h}h {m}min"}
 
     npc = next((n for n in NPCS if n["id"] == npc_id), None)
     if npc is None:
-        return {"error": "NPC inválido"}
+        return {"error": "invalid NPC"}
 
     team_power = calculate_team_power(trainer)
     win_rate   = get_win_rates_with_power(trainer.rarity, team_power)[npc_id - 1]
@@ -575,7 +575,7 @@ def do_gym_battle(player, trainer) -> dict:
 
 def do_elite4_battle(player, trainer) -> dict:
     if player.badges < 8:
-        return {"error": "você precisa de 8 insígnias para desafiar a Elite dos 4"}
+        return {"error": "you need 8 badges to challenge the Elite Four"}
 
     trainer_type = getattr(trainer, "trainer_type", "Normal") or "Normal"
     matchups     = [get_type_matchup(trainer_type, m["type"]) for m in ELITE4_MEMBERS_DATA]
@@ -609,7 +609,7 @@ def do_elite4_battle(player, trainer) -> dict:
 def do_equip_from_bag(player, trainer, bag_index: int) -> dict:
     bag = _bag_entries(player)
     if bag_index < 0 or bag_index >= len(bag):
-        return {"error": "índice inválido na bag"}
+        return {"error": "invalid index in bag"}
 
     entry = bag[bag_index]
 
@@ -668,9 +668,9 @@ def do_expand_bag(player) -> dict:
     cap = player.bag_capacity or 10
     cost = BAG_EXPAND_COSTS.get(cap)
     if cost is None:
-        return {"error": "bag já está no tamanho máximo"}
+        return {"error": "box is already at maximum size"}
     if (player.tokens or 0) < cost:
-        return {"error": f"tokens insuficientes (precisa {cost})"}
+        return {"error": f"not enough tokens (need {cost})"}
     player.tokens       -= cost
     player.bag_capacity  = cap + 5
     return {"ok": True, "bag_capacity": player.bag_capacity, "tokens": player.tokens}
@@ -686,7 +686,7 @@ def do_unlock_level_tier(player, trainer) -> dict:
     if next_cap is None:
         return {"error": "Trainer is already at the maximum unlocked level"}
     if (player.tokens or 0) < cost:
-        return {"error": f"tokens insuficientes (precisa {cost})"}
+        return {"error": f"not enough tokens (need {cost})"}
     player.tokens               -= cost
     trainer.max_level_unlocked   = next_cap
     max_lv = next_cap
@@ -721,7 +721,7 @@ def do_burn(player, rarity: str, trainers: list) -> dict:
 def do_buy_pokemon(player, trainer) -> dict:
     trainer_type = getattr(trainer, "trainer_type", "Normal") or "Normal"
     if (player.tokens or 0) < MARKETPLACE_POKEMON_COST:
-        return {"error": f"tokens insuficientes (precisa {MARKETPLACE_POKEMON_COST})"}
+        return {"error": f"not enough tokens (need {MARKETPLACE_POKEMON_COST})"}
 
     if trainer_type == "Universal":
         pool = TRAINER_TIERS["legendary"]["pokemon_pool"]

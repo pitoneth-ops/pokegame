@@ -8,9 +8,9 @@ import { TypeIcon } from "../components/Icons";
 
 const RARITY_CFG = {
   common:    { label: "COMMON",    pct: "60%", mult: "×1.0",  color: "#9ca3af", bg: "rgba(156,163,175,0.07)", border: "rgba(156,163,175,0.25)", glow: "rgba(156,163,175,0.15)" },
-  rare:      { label: "RARE",      pct: "25%", mult: "×1.4",  color: "#60a5fa", bg: "rgba(96,165,250,0.07)",  border: "rgba(96,165,250,0.25)",  glow: "rgba(96,165,250,0.2)" },
-  epic:      { label: "EPIC",      pct: "12%", mult: "×1.85", color: "#c084fc", bg: "rgba(192,132,252,0.07)", border: "rgba(192,132,252,0.25)", glow: "rgba(192,132,252,0.25)" },
-  legendary: { label: "LEGENDARY", pct: "3%",  mult: "×2.4",  color: "#fbbf24", bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.3)",   glow: "rgba(251,191,36,0.35)" },
+  rare:      { label: "RARE",      pct: "25%", mult: "×1.2",  color: "#60a5fa", bg: "rgba(96,165,250,0.07)",  border: "rgba(96,165,250,0.25)",  glow: "rgba(96,165,250,0.2)" },
+  epic:      { label: "EPIC",      pct: "12%", mult: "×1.5",  color: "#c084fc", bg: "rgba(192,132,252,0.07)", border: "rgba(192,132,252,0.25)", glow: "rgba(192,132,252,0.25)" },
+  legendary: { label: "LEGENDARY", pct: "3%",  mult: "×1.85", color: "#fbbf24", bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.3)",   glow: "rgba(251,191,36,0.35)" },
 } as const;
 
 type Rarity = keyof typeof RARITY_CFG;

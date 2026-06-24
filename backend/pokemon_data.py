@@ -158,9 +158,9 @@ SPRITE_URL = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/p
 
 TRAINER_TIERS = {
     "common": {
-        "battles_per_day": 1,
+        "battles_per_day": 2,      # was 1
         "multiplier":      1.0,
-        "label":           "Comum",
+        "label":           "Common",
         "emoji":           "⬜",
         "pokemon_pool":    [10,11,12,13,14,15,16,17,19,20,21,23,27,29,30,32,33,
                             39,40,41,42,43,44,46,47,48,49,50,54,56,60,61,66,67,
@@ -168,9 +168,9 @@ TRAINER_TIERS = {
                             109,111,116,118,120,129],
     },
     "rare": {
-        "battles_per_day": 2,
-        "multiplier":      1.40,
-        "label":           "Raro",
+        "battles_per_day": 3,      # was 2
+        "multiplier":      1.20,   # was 1.40
+        "label":           "Rare",
         "emoji":           "🔵",
         "pokemon_pool":    [18,22,24,28,31,34,35,36,37,38,45,51,52,53,55,57,58,
                             62,63,64,71,73,76,77,78,80,82,83,85,87,89,92,93,95,
@@ -178,9 +178,9 @@ TRAINER_TIERS = {
                             138,139,140],
     },
     "epic": {
-        "battles_per_day": 3,
-        "multiplier":      1.85,
-        "label":           "Épico",
+        "battles_per_day": 4,      # was 3
+        "multiplier":      1.50,   # was 1.85
+        "label":           "Epic",
         "emoji":           "🟣",
         "pokemon_pool":    [1,2,3,4,5,6,7,8,9,25,26,59,65,68,91,94,106,107,113,
                             115,121,123,125,126,127,128,131,132,133,134,135,136,
@@ -188,8 +188,8 @@ TRAINER_TIERS = {
     },
     "legendary": {
         "battles_per_day": 5,
-        "multiplier":      2.4,
-        "label":           "Lendário",
+        "multiplier":      1.85,   # was 2.40
+        "label":           "Legendary",
         "emoji":           "🟡",
         "pokemon_pool":    [130,144,145,146,149,150,151],
     },
