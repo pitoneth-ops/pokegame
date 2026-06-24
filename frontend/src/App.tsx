@@ -153,7 +153,6 @@ export default function App() {
   useEffect(() => {
     if (!connected || !publicKey) return;
     const key = publicKey.toBase58();
-    if (playerName === key) return;
     getPlayer(key)
       .then(setPlayer)
       .catch(() => createPlayer(key).then(r => setPlayer(r.player)).catch(() => {}));

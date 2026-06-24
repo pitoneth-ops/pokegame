@@ -171,8 +171,32 @@ const PHASE_LABEL: Partial<Record<Phase, string>> = {
   opening:    "Opening pack…",
 };
 
+function PackButton({ type, accent, busy, openingType, phase, disabled, onOpen }: {
+  type: PackType; accent: string; busy: boolean; openingType: PackType;
+  phase: Phase; disabled: boolean; onOpen: () => void;
+}) {
+  const isBusy = busy && openingType === type;
+  const label  = isBusy ? (PHASE_LABEL[phase] ?? "…") : `Open Pack · ${PACK_COSTS[type]} $PKG`;
+  return (
+    <button
+      onClick={onOpen}
+      disabled={disabled}
+      className="w-full py-3 rounded-xl font-black text-sm transition-all"
+      style={{
+        background: isBusy ? `${accent}22` : `${accent}33`,
+        border: `1.5px solid ${accent}66`,
+        color: busy && !isBusy ? "#4b5563" : accent,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: busy && !isBusy ? 0.4 : 1,
+      }}
+    >
+      {isBusy ? <span className="animate-pulse">{label}</span> : label}
+    </button>
+  );
+}
+
 export default function Pack() {
-  const { playerName, player, setPlayer } = useGameStore();
+  const { playerName, setPlayer } = useGameStore();
   const { connection } = useConnection();
   const { publicKey, sendTransaction } = useWallet();
   const nav = useNavigate();
@@ -195,7 +219,7 @@ export default function Pack() {
   const busy = phase !== "idle" && phase !== "reveal_trainer" && phase !== "reveal_pokemon";
 
   async function handleOpen(type: PackType) {
-    if (!publicKey) { setError("Connect your wallet first."); return; }
+    if (!publicKey || !playerName) { setError("Connect your wallet first."); return; }
     if (!walletInfo?.treasury) { setError("Treasury not configured."); return; }
 
     setError("");
@@ -208,7 +232,7 @@ export default function Pack() {
       const treasury   = new PublicKey(walletInfo.treasury);
       const playerAta  = await getAssociatedTokenAddress(tokenMint, publicKey);
       const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury);
-      const rawAmount  = BigInt(cost) * BigInt(Math.pow(10, walletInfo.decimals));
+      const rawAmount  = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
 
       const ix  = createTransferInstruction(playerAta, treasuryAta, publicKey, rawAmount);
       const tx  = new Transaction().add(ix);
@@ -246,6 +270,8 @@ export default function Pack() {
     }
   }
 
+  const isDisabled = busy || !publicKey || !walletInfo?.treasury;
+
   function handleReset() { setPhase("idle"); setTrainer(null); setPokemon(null); }
 
   if (phase === "reveal_trainer" && trainerResult) {
@@ -262,27 +288,6 @@ export default function Pack() {
         <style>{`@keyframes bounceIn{0%{transform:scale(0.3);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}`}</style>
         <PokemonReveal result={pokemonResult} onReset={handleReset} />
       </div>
-    );
-  }
-
-  function PackButton({ type, accent }: { type: PackType; accent: string }) {
-    const isBusy = busy && openingType === type;
-    const label  = isBusy ? (PHASE_LABEL[phase] ?? "…") : `Open Pack · ${PACK_COSTS[type]} $PKG`;
-    return (
-      <button
-        onClick={() => handleOpen(type)}
-        disabled={busy || !publicKey || !walletInfo?.treasury}
-        className="w-full py-3 rounded-xl font-black text-sm transition-all"
-        style={{
-          background: isBusy ? `${accent}22` : `${accent}33`,
-          border: `1.5px solid ${accent}66`,
-          color: busy && !isBusy ? "#4b5563" : accent,
-          cursor: busy || !publicKey ? "not-allowed" : "pointer",
-          opacity: busy && !isBusy ? 0.4 : 1,
-        }}
-      >
-        {isBusy ? <span className="animate-pulse">{label}</span> : label}
-      </button>
     );
   }
 
@@ -330,7 +335,7 @@ export default function Pack() {
             </div>
           ))}
         </div>
-        <div style={{ width: "100%" }}><PackButton type="combo" accent="#fbbf24" /></div>
+        <div style={{ width: "100%" }}><PackButton type="combo" accent="#fbbf24" busy={busy} openingType={openingType} phase={phase} disabled={isDisabled} onOpen={() => handleOpen("combo")} /></div>
       </div>
 
       {/* ── Trainer + Pokémon packs ── */}
@@ -347,7 +352,7 @@ export default function Pack() {
           <div style={{ animation: busy && openingType === "trainer" ? "none" : "packFloat 4.5s ease-in-out infinite" }}>
             <PackCardVisual accent="#60a5fa" label="TRAINER PACK" shimmer icon="👤" />
           </div>
-          <div style={{ width: "100%" }}><PackButton type="trainer" accent="#60a5fa" /></div>
+          <div style={{ width: "100%" }}><PackButton type="trainer" accent="#60a5fa" busy={busy} openingType={openingType} phase={phase} disabled={isDisabled} onOpen={() => handleOpen("trainer")} /></div>
         </div>
 
         <div style={{
@@ -361,7 +366,7 @@ export default function Pack() {
           <div style={{ animation: busy && openingType === "pokemon" ? "none" : "packFloat 3.5s ease-in-out infinite" }}>
             <PackCardVisual accent="#4ade80" label="POKÉMON PACK" shimmer icon="🐾" />
           </div>
-          <div style={{ width: "100%" }}><PackButton type="pokemon" accent="#4ade80" /></div>
+          <div style={{ width: "100%" }}><PackButton type="pokemon" accent="#4ade80" busy={busy} openingType={openingType} phase={phase} disabled={isDisabled} onOpen={() => handleOpen("pokemon")} /></div>
         </div>
       </div>
 
