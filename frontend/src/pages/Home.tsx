@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useGameStore } from "../store";
-import { doWithdraw } from "../api";
+import { doWithdraw, getHistory, type TransactionEntry } from "../api";
 
 const PS = "https://play.pokemonshowdown.com/sprites/trainers";
 
@@ -147,13 +147,41 @@ const GYM_LEADERS_DATA = [
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+const RARITY_STYLE: Record<string, { bg: string; border: string; color: string; label: string }> = {
+  common:    { bg: "rgba(156,163,175,0.12)", border: "rgba(156,163,175,0.3)",  color: "#9ca3af", label: "Common"    },
+  rare:      { bg: "rgba(59,130,246,0.12)",  border: "rgba(59,130,246,0.3)",   color: "#60a5fa", label: "Rare"      },
+  epic:      { bg: "rgba(168,85,247,0.12)",  border: "rgba(168,85,247,0.3)",   color: "#c084fc", label: "Epic"      },
+  legendary: { bg: "rgba(245,158,11,0.12)",  border: "rgba(245,158,11,0.3)",   color: "#fbbf24", label: "Legendary" },
+};
+
+function txIcon(type: string) {
+  if (type === "pack_combo")   return "🎴";
+  if (type === "pack_trainer") return "🧑‍🏫";
+  if (type === "pack_pokemon") return "🔮";
+  if (type === "deposit")      return "💰";
+  if (type === "withdraw")     return "💸";
+  return "📋";
+}
+
+function fmtDate(iso: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 export default function Home() {
   const { playerName, player, setPlayer } = useGameStore();
   const { connected, connecting, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [history, setHistory] = useState<TransactionEntry[]>([]);
 
   const walletPubkey = publicKey?.toBase58() ?? "";
+
+  useEffect(() => {
+    if (!playerName) return;
+    getHistory(playerName).then(setHistory).catch(() => {});
+  }, [playerName]);
 
   if (playerName && player) {
     const badges = player.badges ?? 0;
@@ -335,6 +363,58 @@ export default function Home() {
             <p className="text-gray-700 text-xs mt-3 text-center">
               {8 - badges} badge{8 - badges !== 1 ? "s" : ""} remaining to challenge the Elite Four
             </p>
+          )}
+        </div>
+
+        {/* ── TRANSACTION HISTORY ── */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-black text-white text-sm uppercase tracking-wide">Transaction History</h3>
+            <span className="text-gray-600 text-xs">{history.length > 0 ? `${history.length} recent` : ""}</span>
+          </div>
+
+          {history.length === 0 ? (
+            <p className="text-gray-700 text-xs text-center py-6">No transactions yet — buy a pack or withdraw to see history here.</p>
+          ) : (
+            <div className="space-y-2">
+              {history.map(tx => {
+                const rStyle = tx.meta.rarity ? RARITY_STYLE[tx.meta.rarity] ?? RARITY_STYLE.common : null;
+                return (
+                  <div key={tx.id}
+                       className="flex items-start gap-3 rounded-xl px-3 py-2.5"
+                       style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span className="text-xl flex-shrink-0 mt-0.5">{txIcon(tx.type)}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white text-xs font-bold truncate">{tx.description}</span>
+                        {rStyle && (
+                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                style={{ background: rStyle.bg, border: `1px solid ${rStyle.border}`, color: rStyle.color }}>
+                            {rStyle.label}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        {tx.meta.trainer_type && (
+                          <span className="text-gray-500 text-[10px]">Type: {tx.meta.trainer_type}</span>
+                        )}
+                        {tx.meta.pokemon_name && !tx.meta.trainer_type && (
+                          <span className="text-gray-500 text-[10px]">{tx.meta.pokemon_type}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end flex-shrink-0 gap-1">
+                      {tx.tokens_delta !== 0 && (
+                        <span className={`text-xs font-black ${tx.tokens_delta > 0 ? "text-green-400" : "text-red-400"}`}>
+                          {tx.tokens_delta > 0 ? "+" : ""}{tx.tokens_delta.toLocaleString()} $PKG
+                        </span>
+                      )}
+                      <span className="text-gray-700 text-[10px]">{fmtDate(tx.created_at)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

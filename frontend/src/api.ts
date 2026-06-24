@@ -304,3 +304,25 @@ export const doWithdraw = (name: string, amount: number, wallet: string) =>
   api.post<{ ok: boolean; signature: string; tokens: number }>(
     `/player/${name}/withdraw`, { amount, wallet }
   ).then(r => r.data);
+
+export interface TransactionEntry {
+  id: number;
+  type: string;
+  description: string;
+  tokens_delta: number;
+  meta: {
+    rarity?: string;
+    trainer_name?: string;
+    trainer_type?: string;
+    pokemon_name?: string;
+    pokemon_type?: string;
+    amount?: number;
+    wallet?: string;
+    signature?: string;
+    pokemon_id?: number;
+  };
+  created_at: string;
+}
+
+export const getHistory = (name: string) =>
+  api.get<TransactionEntry[]>(`/player/${name}/history`).then(r => r.data);

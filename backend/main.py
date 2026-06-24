@@ -1,4 +1,4 @@
-import uuid, time
+import uuid, time, json
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from database import create_tables, get_db
-from models import Player, PlayerTrainer
+from models import Player, PlayerTrainer, PlayerTransaction
 from game_logic import (
     roll_trainer_rarity, pick_trainer_char, pick_initial_pokemon, trainer_to_dict,
     do_battle, do_gym_battle, do_elite4_battle, do_burn, do_buy_pokemon,
@@ -181,6 +181,20 @@ def _create_trainer_row(player: Player, db: Session, rarity: str, pokemon_ids: s
     return trainer
 
 
+def _record_tx(db: Session, player_id: int, tx_type: str, description: str,
+               tokens_delta: int = 0, meta: dict = None):
+    from datetime import datetime, timezone
+    tx = PlayerTransaction(
+        player_id    = player_id,
+        tx_type      = tx_type,
+        description  = description,
+        tokens_delta = tokens_delta,
+        meta         = json.dumps(meta or {}),
+        created_at   = datetime.now(timezone.utc),
+    )
+    db.add(tx)
+
+
 def _verify_pack_payment(body: PackPayBody, cost: int):
     from solana_client import verify_deposit_tx
     result = verify_deposit_tx(body.signature, body.wallet)
@@ -235,6 +249,9 @@ def open_pack(name: str, body: PackPayBody, db: Session = Depends(get_db)):
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
     initial_pokemon                    = pick_initial_pokemon(trainer_type)
     trainer = _create_trainer_row(player, db, rarity, initial_pokemon, char_type, char_name, trainer_type)
+    _record_tx(db, player.id, "pack_combo", f"Combo Pack — {rarity} trainer {char_name}", 0, {
+        "rarity": rarity, "trainer_name": char_name, "trainer_type": trainer_type,
+    })
     db.commit()
     return {"ok": True, "tokens": player.tokens, "trainer": trainer_to_dict(trainer)}
 
@@ -247,6 +264,9 @@ def open_trainer_pack_endpoint(name: str, body: PackPayBody, db: Session = Depen
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
     trainer = _create_trainer_row(player, db, rarity, "", char_type, char_name, trainer_type)
+    _record_tx(db, player.id, "pack_trainer", f"Trainer Pack — {rarity} trainer {char_name}", 0, {
+        "rarity": rarity, "trainer_name": char_name, "trainer_type": trainer_type,
+    })
     db.commit()
     return {"ok": True, "tokens": player.tokens, "trainer": trainer_to_dict(trainer)}
 
@@ -259,6 +279,11 @@ def open_pokemon_pack_endpoint(name: str, body: PackPayBody, db: Session = Depen
     result = open_pokemon_pack(player)
     if "error" in result:
         raise HTTPException(400, result["error"])
+    poke = result.get("pokemon", {})
+    _record_tx(db, player.id, "pack_pokemon", f"Pokémon Pack — {poke.get('name', '?')} ({result.get('rarity', '?')})", 0, {
+        "rarity": result.get("rarity"), "pokemon_name": poke.get("name"),
+        "pokemon_type": poke.get("type1"), "pokemon_id": poke.get("id"),
+    })
     db.commit()
     return result
 
@@ -585,6 +610,9 @@ def deposit_verify(name: str, body: DepositVerifyBody, db: Session = Depends(get
     if not result["ok"]:
         raise HTTPException(400, result["error"])
     player.tokens += result["amount"]
+    _record_tx(db, player.id, "deposit", f"Deposited {result['amount']:,} $PKG", result["amount"], {
+        "amount": result["amount"], "signature": body.signature, "wallet": body.wallet,
+    })
     db.commit()
     return {"ok": True, "amount": result["amount"], "tokens": player.tokens}
 
@@ -604,7 +632,34 @@ def withdraw(name: str, body: WithdrawBody, db: Session = Depends(get_db)):
         player.tokens += body.amount
         db.commit()
         raise HTTPException(500, result["error"])
+    _record_tx(db, player.id, "withdraw", f"Withdrew {body.amount:,} $PKG to wallet", -body.amount, {
+        "amount": body.amount, "wallet": body.wallet, "signature": result["signature"],
+    })
+    db.commit()
     return {"ok": True, "signature": result["signature"], "tokens": player.tokens}
+
+
+@app.get("/player/{name}/history")
+def get_history(name: str, db: Session = Depends(get_db)):
+    player = _get_player(name, db)
+    txs = (
+        db.query(PlayerTransaction)
+        .filter(PlayerTransaction.player_id == player.id)
+        .order_by(PlayerTransaction.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id": tx.id,
+            "type": tx.tx_type,
+            "description": tx.description,
+            "tokens_delta": tx.tokens_delta,
+            "meta": json.loads(tx.meta or "{}"),
+            "created_at": tx.created_at.isoformat() if tx.created_at else "",
+        }
+        for tx in txs
+    ]
 
 
 # ── Dev ───────────────────────────────────────────────────────────────────────

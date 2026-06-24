@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime, timezone
 
@@ -46,3 +46,15 @@ class PlayerTrainer(Base):
     obtained_at    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     player = relationship("Player", back_populates="trainers")
+
+
+class PlayerTransaction(Base):
+    __tablename__ = "player_transactions"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    player_id    = Column(Integer, ForeignKey("players.id"), index=True)
+    tx_type      = Column(String)   # pack_combo | pack_trainer | pack_pokemon | deposit | withdraw
+    description  = Column(String)
+    tokens_delta = Column(Integer, default=0)
+    meta         = Column(Text, default="{}")  # JSON string with extra detail
+    created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
