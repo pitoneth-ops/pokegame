@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { Transaction, PublicKey } from "@solana/web3.js";
+import { getAssociatedTokenAddress, createTransferInstruction } from "@solana/spl-token";
 import { useGameStore } from "../store";
-import { openPack, openTrainerPack, openPokemonPack, getPlayer } from "../api";
+import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo } from "../api";
 import type { Trainer, PokemonPackResult } from "../api";
-import { ConfirmModal } from "../components/ConfirmModal";
 import { TypeIcon } from "../components/Icons";
 
 const RARITY_CFG = {
@@ -13,20 +16,13 @@ const RARITY_CFG = {
   legendary: { label: "LEGENDARY", pct: "3%",  mult: "×1.85", color: "#fbbf24", bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.3)",   glow: "rgba(251,191,36,0.35)" },
 } as const;
 
-type Rarity = keyof typeof RARITY_CFG;
-
-type PackType = "combo" | "trainer" | "pokemon";
-type Phase = "idle" | "opening" | "reveal_trainer" | "reveal_pokemon";
+type Rarity    = keyof typeof RARITY_CFG;
+type PackType  = "combo" | "trainer" | "pokemon";
+type Phase     = "idle" | "signing" | "confirming" | "opening" | "reveal_trainer" | "reveal_pokemon";
 
 const PACK_COSTS: Record<PackType, number> = { combo: 150, trainer: 80, pokemon: 60 };
 
-const TYPE_ICONS: Record<string, string> = {
-  Normal:"⬜",Fire:"🔥",Water:"💧",Grass:"🌿",Electric:"⚡",Ice:"❄️",
-  Fighting:"🥊",Poison:"☠️",Ground:"🌍",Flying:"🦅",Psychic:"🔮",Bug:"🐛",
-  Rock:"🪨",Ghost:"👻",Dragon:"🐉",Dark:"🌑",Steel:"⚙️",Fairy:"✨",Universal:"🌈",
-};
-
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Visuals ───────────────────────────────────────────────────────────────────
 
 function PackCardVisual({ accent, label, shimmer, icon }: {
   accent: string; label: string; shimmer?: boolean; icon?: string;
@@ -34,7 +30,7 @@ function PackCardVisual({ accent, label, shimmer, icon }: {
   return (
     <div style={{
       width: 160, height: 220, borderRadius: 16, position: "relative", overflow: "hidden",
-      background: `linear-gradient(145deg,#1a1040 0%,#0d1832 40%,#0a1020 100%)`,
+      background: "linear-gradient(145deg,#1a1040 0%,#0d1832 40%,#0a1020 100%)",
       border: `2px solid ${accent}40`,
       boxShadow: `0 0 30px ${accent}20, inset 0 0 40px rgba(0,0,0,0.4)`,
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10,
@@ -47,16 +43,17 @@ function PackCardVisual({ accent, label, shimmer, icon }: {
         }} />
       )}
       <div style={{ fontSize: 32 }}>{icon ?? "🎴"}</div>
-      <div style={{
-        fontSize: 11, fontWeight: 900, color: `${accent}cc`,
-        letterSpacing: "0.12em", textAlign: "center", padding: "0 12px",
-      }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 900, color: `${accent}cc`, letterSpacing: "0.12em", textAlign: "center", padding: "0 12px" }}>
+        {label}
+      </div>
     </div>
   );
 }
 
-function TrainerReveal({ trainer, onReset, tokens, onOpen }: {
-  trainer: Trainer; onReset: () => void; tokens: number; onOpen: () => void;
+// ── Trainer reveal ────────────────────────────────────────────────────────────
+
+function TrainerReveal({ trainer, onReset, onOpen }: {
+  trainer: Trainer; onReset: () => void; onOpen: () => void;
 }) {
   const r   = trainer.rarity as Rarity;
   const cfg = RARITY_CFG[r] ?? RARITY_CFG.common;
@@ -124,18 +121,17 @@ function TrainerReveal({ trainer, onReset, tokens, onOpen }: {
         </div>
       </div>
       <div className="flex gap-3 mt-5">
-        <button className="btn-yellow" onClick={onOpen} disabled={tokens < 150}>Open Another · 150 $PKG</button>
+        <button className="btn-yellow" onClick={onOpen}>Open Another · 150 $PKG</button>
         <button className="btn-gray" onClick={() => nav("/trainers")}>View collection</button>
       </div>
       <button className="text-gray-500 text-xs mt-3 underline" onClick={onReset}>Back</button>
-      <p style={{ fontSize: 12, color: "#4b5563", marginTop: 8 }}>Balance: {tokens} $PKG</p>
     </div>
   );
 }
 
-function PokemonReveal({ result, onReset, tokens }: {
-  result: PokemonPackResult; onReset: () => void; tokens: number;
-}) {
+// ── Pokémon reveal ────────────────────────────────────────────────────────────
+
+function PokemonReveal({ result, onReset }: { result: PokemonPackResult; onReset: () => void }) {
   const r   = result.rarity as Rarity;
   const cfg = RARITY_CFG[r] ?? RARITY_CFG.common;
   const p   = result.pokemon;
@@ -160,25 +156,35 @@ function PokemonReveal({ result, onReset, tokens }: {
         <p style={{ fontSize: 11, color: "#6b7280", textAlign: "center" }}>Added to your Box!</p>
       </div>
       <div className="flex gap-3 mt-5">
-        <button className="btn-yellow" onClick={onReset} disabled={tokens < 60}>Open Another · 60 $PKG</button>
+        <button className="btn-yellow" onClick={onReset}>Open Another · 60 $PKG</button>
       </div>
       <button className="text-gray-500 text-xs mt-3 underline" onClick={onReset}>Back</button>
-      <p style={{ fontSize: 12, color: "#4b5563", marginTop: 8 }}>Balance: {tokens} $PKG</p>
     </div>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const PHASE_LABEL: Partial<Record<Phase, string>> = {
+  signing:    "Approve in Phantom…",
+  confirming: "Confirming on-chain…",
+  opening:    "Opening pack…",
+};
+
 export default function Pack() {
   const { playerName, player, setPlayer } = useGameStore();
-  const [phase, setPhase]         = useState<Phase>("idle");
-  const [openingType, setOpening] = useState<PackType>("combo");
+  const { connection } = useConnection();
+  const { publicKey, sendTransaction } = useWallet();
+  const nav = useNavigate();
+
+  const [phase, setPhase]           = useState<Phase>("idle");
+  const [openingType, setOpening]   = useState<PackType>("combo");
   const [trainerResult, setTrainer] = useState<Trainer | null>(null);
   const [pokemonResult, setPokemon] = useState<PokemonPackResult | null>(null);
-  const [error, setError]         = useState("");
-  const [confirm, setConfirm]     = useState<{ type: PackType; cost: number } | null>(null);
-  const nav = useNavigate();
+  const [error, setError]           = useState("");
+  const [walletInfo, setWalletInfo] = useState<{ mint: string; decimals: number; treasury: string | null } | null>(null);
+
+  useEffect(() => { getWalletInfo().then(setWalletInfo).catch(() => {}); }, []);
 
   if (!playerName) return (
     <div className="text-center py-20">
@@ -186,62 +192,67 @@ export default function Pack() {
     </div>
   );
 
-  const tokens = player?.tokens ?? 0;
-
-  function askOpen(type: PackType) {
-    setConfirm({ type, cost: PACK_COSTS[type] });
-  }
+  const busy = phase !== "idle" && phase !== "reveal_trainer" && phase !== "reveal_pokemon";
 
   async function handleOpen(type: PackType) {
-    if (!playerName) return;
-    setError(""); setOpening(type); setPhase("opening");
+    if (!publicKey) { setError("Connect your wallet first."); return; }
+    if (!walletInfo?.treasury) { setError("Treasury not configured."); return; }
+
+    setError("");
+    setOpening(type);
+    setPhase("signing");
+
     try {
+      const cost       = PACK_COSTS[type];
+      const tokenMint  = new PublicKey(walletInfo.mint);
+      const treasury   = new PublicKey(walletInfo.treasury);
+      const playerAta  = await getAssociatedTokenAddress(tokenMint, publicKey);
+      const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury);
+      const rawAmount  = BigInt(cost) * BigInt(Math.pow(10, walletInfo.decimals));
+
+      const ix  = createTransferInstruction(playerAta, treasuryAta, publicKey, rawAmount);
+      const tx  = new Transaction().add(ix);
+      const sig = await sendTransaction(tx, connection);
+
+      setPhase("confirming");
+      await connection.confirmTransaction(sig, "confirmed");
+      setPhase("opening");
+
+      const wallet = publicKey.toBase58();
       if (type === "combo") {
-        const res = await openPack(playerName);
+        const res = await openPack(playerName, sig, wallet);
+        setTrainer(res.trainer);
         const updated = await getPlayer(playerName);
         setPlayer(updated);
-        setTrainer(res.trainer);
-        setTimeout(() => setPhase("reveal_trainer"), 1200);
+        setTimeout(() => setPhase("reveal_trainer"), 800);
       } else if (type === "trainer") {
-        const res = await openTrainerPack(playerName);
-        const updated = await getPlayer(playerName);
-        setPlayer(updated);
+        const res = await openTrainerPack(playerName, sig, wallet);
         setTrainer(res.trainer);
-        setTimeout(() => setPhase("reveal_trainer"), 1200);
-      } else {
-        const res = await openPokemonPack(playerName);
         const updated = await getPlayer(playerName);
         setPlayer(updated);
+        setTimeout(() => setPhase("reveal_trainer"), 800);
+      } else {
+        const res = await openPokemonPack(playerName, sig, wallet);
         setPokemon(res);
-        setTimeout(() => setPhase("reveal_pokemon"), 1200);
+        const updated = await getPlayer(playerName);
+        setPlayer(updated);
+        setTimeout(() => setPhase("reveal_pokemon"), 800);
       }
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? "Error"); setPhase("idle");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail
+        ?? (e as Error)?.message ?? "Error";
+      setError(msg.includes("rejected") ? "Transaction cancelled." : msg);
+      setPhase("idle");
     }
   }
 
   function handleReset() { setPhase("idle"); setTrainer(null); setPokemon(null); }
 
-  const PACK_LABELS: Record<PackType, string> = { combo: "Combo Pack", trainer: "Trainer Pack", pokemon: "Pokémon Pack" };
-
-  if (confirm) {
-    return (
-      <ConfirmModal
-        title={`Open ${PACK_LABELS[confirm.type]}?`}
-        message={`Spend ${confirm.cost} tokens to open a ${PACK_LABELS[confirm.type]}?`}
-        detail={confirm.type === "combo" ? "Includes 1 Trainer + 1 Pokémon of matching type." : undefined}
-        confirmLabel={`Open · ${confirm.cost} $PKG`}
-        onConfirm={() => { setConfirm(null); handleOpen(confirm.type); }}
-        onCancel={() => setConfirm(null)}
-      />
-    );
-  }
-
   if (phase === "reveal_trainer" && trainerResult) {
     return (
       <div className="animate-fade-in">
         <style>{`@keyframes bounceIn{0%{transform:scale(0.3);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}`}</style>
-        <TrainerReveal trainer={trainerResult} onReset={handleReset} tokens={tokens} onOpen={() => askOpen("combo")} />
+        <TrainerReveal trainer={trainerResult} onReset={handleReset} onOpen={() => handleOpen("combo")} />
       </div>
     );
   }
@@ -249,31 +260,54 @@ export default function Pack() {
     return (
       <div className="animate-fade-in">
         <style>{`@keyframes bounceIn{0%{transform:scale(0.3);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}`}</style>
-        <PokemonReveal result={pokemonResult} onReset={handleReset} tokens={tokens} />
+        <PokemonReveal result={pokemonResult} onReset={handleReset} />
       </div>
     );
   }
 
-  const isOpening = phase === "opening";
+  function PackButton({ type, accent }: { type: PackType; accent: string }) {
+    const isBusy = busy && openingType === type;
+    const label  = isBusy ? (PHASE_LABEL[phase] ?? "…") : `Open Pack · ${PACK_COSTS[type]} $PKG`;
+    return (
+      <button
+        onClick={() => handleOpen(type)}
+        disabled={busy || !publicKey || !walletInfo?.treasury}
+        className="w-full py-3 rounded-xl font-black text-sm transition-all"
+        style={{
+          background: isBusy ? `${accent}22` : `${accent}33`,
+          border: `1.5px solid ${accent}66`,
+          color: busy && !isBusy ? "#4b5563" : accent,
+          cursor: busy || !publicKey ? "not-allowed" : "pointer",
+          opacity: busy && !isBusy ? 0.4 : 1,
+        }}
+      >
+        {isBusy ? <span className="animate-pulse">{label}</span> : label}
+      </button>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-6 py-4 animate-fade-in">
       <style>{`
         @keyframes packShimmer { 0%{transform:translateX(-100%)}100%{transform:translateX(200%)} }
         @keyframes packFloat { 0%,100%{transform:translateY(0px)}50%{transform:translateY(-10px)} }
-        @keyframes packShake { 0%,100%{transform:rotate(0deg)}20%{transform:rotate(-6deg)}40%{transform:rotate(6deg)}60%{transform:rotate(-4deg)}80%{transform:rotate(4deg)} }
       `}</style>
 
       <h1 className="text-3xl font-black text-yellow-400 self-start w-full">🎴 Open Pack</h1>
 
-      {error && <p className="text-red-400 text-sm">{error}</p>}
+      {!publicKey && (
+        <div className="w-full max-w-sm rounded-xl px-4 py-3 text-xs font-bold text-yellow-400 text-center"
+             style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
+          Connect your wallet to open packs
+        </div>
+      )}
+      {error && <p className="text-red-400 text-sm font-bold">{error}</p>}
 
-      {/* ── Featured: Combo Pack ─────────────────────────────────── */}
+      {/* ── Combo Pack ── */}
       <div style={{
         width: "100%", maxWidth: 380,
         background: "linear-gradient(160deg,rgba(251,191,36,0.10) 0%,rgba(5,8,20,1) 100%)",
-        border: "2px solid rgba(251,191,36,0.35)",
-        borderRadius: 24,
+        border: "2px solid rgba(251,191,36,0.35)", borderRadius: 24,
         boxShadow: "0 0 40px rgba(251,191,36,0.15)",
         padding: "20px 20px 16px",
         display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
@@ -283,17 +317,11 @@ export default function Pack() {
           <span style={{ fontSize: 11, background: "rgba(251,191,36,0.15)", color: "#fbbf24", borderRadius: 8, padding: "2px 8px", fontWeight: 700 }}>FEATURED</span>
         </div>
         <p style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", lineHeight: 1.6 }}>
-          Guarantees <strong style={{ color: "#fff" }}>1 Trainer + 1 Pokémon</strong> of the same type.<br/>
-          Trainer comes with starter Pokémon already equipped.
+          Guarantees <strong style={{ color: "#fff" }}>1 Trainer + 1 Pokémon</strong> of the same type.
         </p>
-        <div style={{
-          animation: isOpening && openingType === "combo"
-            ? "packShake 0.4s ease-in-out 3"
-            : "packFloat 4s ease-in-out infinite",
-        }}>
+        <div style={{ animation: busy && openingType === "combo" ? "none" : "packFloat 4s ease-in-out infinite" }}>
           <PackCardVisual accent="#fbbf24" label="TRAINER + POKÉMON" shimmer icon="🎴" />
         </div>
-        {/* Rarity odds */}
         <div style={{ width: "100%", display: "flex", gap: 6, justifyContent: "center" }}>
           {(["common","rare","epic","legendary"] as Rarity[]).map(r => (
             <div key={r} style={{ textAlign: "center" }}>
@@ -302,91 +330,38 @@ export default function Pack() {
             </div>
           ))}
         </div>
-        {isOpening && openingType === "combo" ? (
-          <div className="text-center">
-            <div className="text-4xl animate-spin inline-block">✨</div>
-            <p className="text-gray-400 mt-2 animate-pulse font-bold text-sm">Opening...</p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
-            <button
-              className="btn-yellow text-lg px-8 py-3 font-black flex-1"
-              style={{ borderRadius: 14 }}
-              onClick={() => askOpen("combo")}
-              disabled={tokens < 150 || isOpening}
-            >
-              Open Pack
-            </button>
-            <span style={{ color: "#fbbf24", fontWeight: 900, fontSize: 13, whiteSpace: "nowrap" }}>150 $PKG</span>
-          </div>
-        )}
+        <div style={{ width: "100%" }}><PackButton type="combo" accent="#fbbf24" /></div>
       </div>
 
-      {/* ── Secondary: Trainer + Pokémon packs ────────────────────── */}
+      {/* ── Trainer + Pokémon packs ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 380 }}>
 
-        {/* Trainer Pack */}
         <div style={{
           background: "linear-gradient(160deg,rgba(96,165,250,0.08) 0%,rgba(5,8,20,1) 100%)",
-          border: "1.5px solid rgba(96,165,250,0.25)",
-          borderRadius: 18,
+          border: "1.5px solid rgba(96,165,250,0.25)", borderRadius: 18,
           padding: "16px 14px 14px",
           display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         }}>
           <span style={{ fontSize: 12, fontWeight: 900, color: "#60a5fa", letterSpacing: "0.06em" }}>👤 TRAINER</span>
-          <p style={{ fontSize: 10, color: "#6b7280", textAlign: "center", lineHeight: 1.5 }}>
-            Trainer only.<br/>Pokémon <strong style={{ color: "#9ca3af" }}>not</strong> included.
-          </p>
-          <div style={{ animation: isOpening && openingType === "trainer" ? "packShake 0.4s ease-in-out 3" : "packFloat 4.5s ease-in-out infinite" }}>
+          <p style={{ fontSize: 10, color: "#6b7280", textAlign: "center", lineHeight: 1.5 }}>Trainer only.<br/>Pokémon <strong style={{ color: "#9ca3af" }}>not</strong> included.</p>
+          <div style={{ animation: busy && openingType === "trainer" ? "none" : "packFloat 4.5s ease-in-out infinite" }}>
             <PackCardVisual accent="#60a5fa" label="TRAINER PACK" shimmer icon="👤" />
           </div>
-          {isOpening && openingType === "trainer" ? (
-            <div className="text-3xl animate-spin">✨</div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-              <button
-                className="btn-gray text-sm px-3 py-2 font-black flex-1"
-                style={{ borderRadius: 10 }}
-                onClick={() => askOpen("trainer")}
-                disabled={tokens < 80 || isOpening}
-              >
-                Open Pack
-              </button>
-              <span style={{ color: "#60a5fa", fontWeight: 900, fontSize: 12, whiteSpace: "nowrap" }}>80 $PKG</span>
-            </div>
-          )}
+          <div style={{ width: "100%" }}><PackButton type="trainer" accent="#60a5fa" /></div>
         </div>
 
-        {/* Pokémon Pack */}
         <div style={{
           background: "linear-gradient(160deg,rgba(34,197,94,0.08) 0%,rgba(5,8,20,1) 100%)",
-          border: "1.5px solid rgba(34,197,94,0.25)",
-          borderRadius: 18,
+          border: "1.5px solid rgba(34,197,94,0.25)", borderRadius: 18,
           padding: "16px 14px 14px",
           display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         }}>
           <span style={{ fontSize: 12, fontWeight: 900, color: "#4ade80", letterSpacing: "0.06em" }}>🐾 POKÉMON</span>
-          <p style={{ fontSize: 10, color: "#6b7280", textAlign: "center", lineHeight: 1.5 }}>
-            1 Pokémon Lv. 1.<br/>Rarity = evolution potential.
-          </p>
-          <div style={{ animation: isOpening && openingType === "pokemon" ? "packShake 0.4s ease-in-out 3" : "packFloat 3.5s ease-in-out infinite" }}>
+          <p style={{ fontSize: 10, color: "#6b7280", textAlign: "center", lineHeight: 1.5 }}>1 Pokémon Lv. 1.<br/>Rarity = evolution potential.</p>
+          <div style={{ animation: busy && openingType === "pokemon" ? "none" : "packFloat 3.5s ease-in-out infinite" }}>
             <PackCardVisual accent="#4ade80" label="POKÉMON PACK" shimmer icon="🐾" />
           </div>
-          {isOpening && openingType === "pokemon" ? (
-            <div className="text-3xl animate-spin">✨</div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-              <button
-                className="btn-gray text-sm px-3 py-2 font-black flex-1"
-                style={{ borderRadius: 10 }}
-                onClick={() => askOpen("pokemon")}
-                disabled={tokens < 60 || isOpening}
-              >
-                Open Pack
-              </button>
-              <span style={{ color: "#4ade80", fontWeight: 900, fontSize: 12, whiteSpace: "nowrap" }}>60 $PKG</span>
-            </div>
-          )}
+          <div style={{ width: "100%" }}><PackButton type="pokemon" accent="#4ade80" /></div>
         </div>
       </div>
 
@@ -396,9 +371,7 @@ export default function Pack() {
         background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)",
         borderRadius: 14, padding: "12px 16px",
       }}>
-        <p style={{ fontSize: 10, fontWeight: 900, color: "#6b7280", letterSpacing: "0.1em", marginBottom: 8 }}>
-          WIN RATE MULTIPLIERS
-        </p>
+        <p style={{ fontSize: 10, fontWeight: 900, color: "#6b7280", letterSpacing: "0.1em", marginBottom: 8 }}>WIN RATE MULTIPLIERS</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {(Object.entries(RARITY_CFG) as [Rarity, typeof RARITY_CFG[Rarity]][]).map(([key, cfg]) => (
             <div key={key} style={{ display: "flex", alignItems: "center", gap: 5 }}>

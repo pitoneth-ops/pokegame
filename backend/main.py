@@ -77,6 +77,10 @@ class WithdrawBody(BaseModel):
     amount: int
     wallet: str   # player's Solana public key
 
+class PackPayBody(BaseModel):
+    signature: str
+    wallet: str   # player's Solana public key
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -158,14 +162,20 @@ def _create_trainer_row(player: Player, db: Session, rarity: str, pokemon_ids: s
     return trainer
 
 
+def _verify_pack_payment(body: PackPayBody, cost: int):
+    from solana_client import verify_deposit_tx
+    result = verify_deposit_tx(body.signature, body.wallet)
+    if not result["ok"]:
+        raise HTTPException(400, result["error"])
+    if result["amount"] < cost:
+        raise HTTPException(400, f"insufficient payment (need {cost} $PKG, got {result['amount']})")
+
+
 @app.post("/player/{name}/pack")
-def open_pack(name: str, db: Session = Depends(get_db)):
-    """Combo pack — trainer + type-matched Pokémon."""
+def open_pack(name: str, body: PackPayBody, db: Session = Depends(get_db)):
+    """Combo pack — paid with real SPL tokens from wallet."""
     player = _get_player(name, db)
-    cost = COMBO_PACK_COST
-    if player.tokens < cost:
-        raise HTTPException(400, f"not enough tokens (need {cost})")
-    player.tokens -= cost
+    _verify_pack_payment(body, COMBO_PACK_COST)
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
     initial_pokemon                    = pick_initial_pokemon(trainer_type)
@@ -175,12 +185,10 @@ def open_pack(name: str, db: Session = Depends(get_db)):
 
 
 @app.post("/player/{name}/pack/trainer")
-def open_trainer_pack_endpoint(name: str, db: Session = Depends(get_db)):
-    """Trainer-only pack — no Pokémon assigned."""
+def open_trainer_pack_endpoint(name: str, body: PackPayBody, db: Session = Depends(get_db)):
+    """Trainer-only pack — paid with real SPL tokens from wallet."""
     player = _get_player(name, db)
-    if player.tokens < TRAINER_PACK_COST:
-        raise HTTPException(400, f"not enough tokens (need {TRAINER_PACK_COST})")
-    player.tokens -= TRAINER_PACK_COST
+    _verify_pack_payment(body, TRAINER_PACK_COST)
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
     trainer = _create_trainer_row(player, db, rarity, "", char_type, char_name, trainer_type)
@@ -189,9 +197,10 @@ def open_trainer_pack_endpoint(name: str, db: Session = Depends(get_db)):
 
 
 @app.post("/player/{name}/pack/pokemon")
-def open_pokemon_pack_endpoint(name: str, db: Session = Depends(get_db)):
-    """Pokémon-only pack — goes to bag at Lv 1."""
+def open_pokemon_pack_endpoint(name: str, body: PackPayBody, db: Session = Depends(get_db)):
+    """Pokémon-only pack — paid with real SPL tokens from wallet."""
     player = _get_player(name, db)
+    _verify_pack_payment(body, POKEMON_PACK_COST)
     result = open_pokemon_pack(player)
     if "error" in result:
         raise HTTPException(400, result["error"])

@@ -1,190 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useConnection } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { Transaction, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, createTransferInstruction } from "@solana/spl-token";
 import { useGameStore } from "../store";
-import { getWalletInfo, verifyDeposit, doWithdraw } from "../api";
+import { doWithdraw } from "../api";
 
 const PS = "https://play.pokemonshowdown.com/sprites/trainers";
-
-// ─── Shared modal shell ──────────────────────────────────────────────────────
-
-function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(10px)" }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="w-full max-w-sm animate-slide-up"
-        style={{ background: "#16162a", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 20, overflow: "hidden" }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// ─── Deposit Modal ───────────────────────────────────────────────────────────
-
-type DepositStep = "input" | "signing" | "confirming" | "verifying" | "done";
-
-function DepositModal({
-  treasury, mint, decimals, playerName, onClose, onSuccess,
-}: {
-  treasury: string;
-  mint: string;
-  decimals: number;
-  playerName: string;
-  onClose: () => void;
-  onSuccess: (newTokens: number) => void;
-}) {
-  const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
-  const [amount, setAmount]   = useState("");
-  const [step, setStep]       = useState<DepositStep>("input");
-  const [txSig, setTxSig]     = useState("");
-  const [credited, setCredited] = useState(0);
-  const [error, setError]     = useState("");
-
-  const busy = step !== "input" && step !== "done";
-
-  async function handleDeposit() {
-    const amt = parseInt(amount);
-    if (!amt || amt <= 0) { setError("Enter a valid amount."); return; }
-    if (!publicKey)       { setError("Wallet not connected."); return; }
-
-    setError("");
-    setStep("signing");
-
-    try {
-      const tokenMint     = new PublicKey(mint);
-      const treasuryKey   = new PublicKey(treasury);
-      const playerAta     = await getAssociatedTokenAddress(tokenMint, publicKey);
-      const treasuryAta   = await getAssociatedTokenAddress(tokenMint, treasuryKey);
-      const rawAmount     = BigInt(amt) * BigInt(Math.pow(10, decimals));
-
-      const ix = createTransferInstruction(playerAta, treasuryAta, publicKey, rawAmount);
-      const tx = new Transaction().add(ix);
-
-      const sig = await sendTransaction(tx, connection);
-      setTxSig(sig);
-      setStep("confirming");
-
-      await connection.confirmTransaction(sig, "confirmed");
-      setStep("verifying");
-
-      const res = await verifyDeposit(playerName, sig, publicKey.toBase58());
-      setCredited(res.amount);
-      onSuccess(res.tokens);
-      setStep("done");
-    } catch (e: unknown) {
-      const msg = (e as Error)?.message ?? "Transaction failed";
-      setError(msg.includes("rejected") ? "Transaction cancelled." : msg);
-      setStep("input");
-    }
-  }
-
-  const stepLabel: Record<DepositStep, string> = {
-    input:      "",
-    signing:    "Waiting for wallet approval…",
-    confirming: "Confirming on Solana…",
-    verifying:  "Crediting balance…",
-    done:       "",
-  };
-
-  return (
-    <Modal onClose={onClose}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <div>
-          <p className="font-black text-white text-lg">Deposit $PKG</p>
-          <p className="text-gray-500 text-xs mt-0.5">Add tokens to your in-game balance</p>
-        </div>
-        <button onClick={onClose} disabled={busy} className="text-gray-600 hover:text-white text-2xl w-8 h-8 flex items-center justify-center rounded-full transition-colors">×</button>
-      </div>
-
-      <div className="p-6 space-y-5">
-        {step === "done" ? (
-          /* Success */
-          <div className="space-y-4">
-            <div className="text-center py-4">
-              <div className="text-5xl mb-3">✅</div>
-              <p className="font-black text-white text-xl">+{credited.toLocaleString()} $PKG</p>
-              <p className="text-gray-400 text-sm mt-1">Added to your balance</p>
-            </div>
-            <a
-              href={`https://solscan.io/tx/${txSig}`}
-              target="_blank" rel="noreferrer"
-              className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold"
-              style={{ background: "rgba(20,241,149,0.08)", border: "1px solid rgba(20,241,149,0.2)", color: "#14f195" }}
-            >
-              View on Solscan ↗
-            </a>
-            <button onClick={onClose} className="btn-gray w-full py-3">Done</button>
-          </div>
-        ) : busy ? (
-          /* Loading */
-          <div className="text-center py-8 space-y-4">
-            <div className="text-4xl animate-spin inline-block">⟳</div>
-            <p className="text-white font-bold">{stepLabel[step]}</p>
-            <p className="text-gray-500 text-xs">Don't close this window</p>
-          </div>
-        ) : (
-          /* Input */
-          <>
-            <div>
-              <label className="text-gray-400 text-xs font-bold block mb-2">Amount to deposit</label>
-              <div className="relative">
-                <input
-                  type="number" min="1"
-                  value={amount}
-                  onChange={e => { setAmount(e.target.value); setError(""); }}
-                  placeholder="0"
-                  className="w-full text-3xl font-black text-white text-center py-5 rounded-2xl bg-transparent"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", outline: "none" }}
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">$PKG</span>
-              </div>
-            </div>
-
-            <div className="rounded-xl px-4 py-3 text-xs text-gray-400 space-y-1"
-                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <p className="flex justify-between">
-                <span>Rate</span><span className="text-white">1 real token = 1 $PKG</span>
-              </p>
-              <p className="flex justify-between">
-                <span>Destination</span><span className="font-mono text-purple-300">{treasury.slice(0,6)}…{treasury.slice(-4)}</span>
-              </p>
-            </div>
-
-            {error && (
-              <p className="text-red-400 text-xs font-bold text-center">{error}</p>
-            )}
-
-            <button
-              onClick={handleDeposit}
-              disabled={!amount || parseInt(amount) <= 0 || !publicKey}
-              className="w-full py-4 rounded-2xl font-black text-base transition-all"
-              style={{
-                background: !amount || parseInt(amount) <= 0 || !publicKey
-                  ? "rgba(255,255,255,0.06)"
-                  : "linear-gradient(135deg,#9945ff,#6d28d9)",
-                color: !amount || parseInt(amount) <= 0 || !publicKey ? "#4b5563" : "white",
-                cursor: !amount || parseInt(amount) <= 0 || !publicKey ? "not-allowed" : "pointer",
-              }}
-            >
-              Deposit → Approve in Phantom
-            </button>
-          </>
-        )}
-      </div>
-    </Modal>
-  );
-}
 
 // ─── Withdraw Modal ──────────────────────────────────────────────────────────
 
@@ -222,102 +42,93 @@ function WithdrawModal({
   }
 
   return (
-    <Modal onClose={onClose}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <div>
-          <p className="font-black text-white text-lg">Withdraw $PKG</p>
-          <p className="text-gray-500 text-xs mt-0.5">Send tokens to your wallet</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(10px)" }}
+         onClick={e => { if (e.target === e.currentTarget && !loading) onClose(); }}>
+      <div className="w-full max-w-sm animate-slide-up"
+           style={{ background: "#16162a", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 20, overflow: "hidden" }}>
+
+        <div className="flex items-center justify-between px-6 py-5"
+             style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <div>
+            <p className="font-black text-white text-lg">Withdraw $PKG</p>
+            <p className="text-gray-500 text-xs mt-0.5">Send farmed tokens to your wallet</p>
+          </div>
+          <button onClick={onClose} disabled={loading}
+                  className="text-gray-600 hover:text-white text-2xl w-8 h-8 flex items-center justify-center rounded-full transition-colors">×</button>
         </div>
-        <button onClick={onClose} disabled={loading} className="text-gray-600 hover:text-white text-2xl w-8 h-8 flex items-center justify-center rounded-full transition-colors">×</button>
-      </div>
 
-      <div className="p-6 space-y-5">
-        {txSig ? (
-          /* Success */
-          <div className="space-y-4">
-            <div className="text-center py-4">
-              <div className="text-5xl mb-3">✅</div>
-              <p className="font-black text-white text-xl">Sent!</p>
-              <p className="text-gray-400 text-sm mt-1">Tokens are on the way to your wallet</p>
+        <div className="p-6 space-y-5">
+          {txSig ? (
+            <div className="space-y-4">
+              <div className="text-center py-4">
+                <div className="text-5xl mb-3">✅</div>
+                <p className="font-black text-white text-xl">Sent!</p>
+                <p className="text-gray-400 text-sm mt-1">Tokens are on the way to your wallet</p>
+              </div>
+              <a href={`https://solscan.io/tx/${txSig}`} target="_blank" rel="noreferrer"
+                 className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold"
+                 style={{ background: "rgba(20,241,149,0.08)", border: "1px solid rgba(20,241,149,0.2)", color: "#14f195" }}>
+                View on Solscan ↗
+              </a>
+              <button onClick={onClose} className="btn-gray w-full py-3">Done</button>
             </div>
-            <a
-              href={`https://solscan.io/tx/${txSig}`}
-              target="_blank" rel="noreferrer"
-              className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold"
-              style={{ background: "rgba(20,241,149,0.08)", border: "1px solid rgba(20,241,149,0.2)", color: "#14f195" }}
-            >
-              View on Solscan ↗
-            </a>
-            <button onClick={onClose} className="btn-gray w-full py-3">Done</button>
-          </div>
-        ) : loading ? (
-          /* Loading */
-          <div className="text-center py-8 space-y-4">
-            <div className="text-4xl animate-spin inline-block">⟳</div>
-            <p className="text-white font-bold">Sending tokens…</p>
-          </div>
-        ) : (
-          /* Input */
-          <>
-            <div className="flex items-center justify-between px-4 py-3 rounded-xl"
-                 style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }}>
-              <span className="text-gray-400 text-sm">Available</span>
-              <span className="font-black text-yellow-400 text-lg">{balance.toLocaleString()} $PKG</span>
+          ) : loading ? (
+            <div className="text-center py-8 space-y-4">
+              <div className="text-4xl animate-spin inline-block">⟳</div>
+              <p className="text-white font-bold">Sending tokens…</p>
             </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between px-4 py-3 rounded-xl"
+                   style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                <span className="text-gray-400 text-sm">Farmed balance</span>
+                <span className="font-black text-yellow-400 text-lg">{balance.toLocaleString()} $PKG</span>
+              </div>
 
-            <div>
-              <label className="text-gray-400 text-xs font-bold block mb-2">Amount to withdraw</label>
-              <div className="flex gap-2">
-                <input
-                  type="number" min="1" max={balance}
-                  value={amount}
-                  onChange={e => { setAmount(e.target.value); setError(""); }}
-                  placeholder="0"
-                  className="flex-1 text-2xl font-black text-white py-4 px-4 rounded-2xl"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", outline: "none" }}
-                />
-                <button
-                  onClick={() => setAmount(String(balance))}
-                  className="px-4 rounded-2xl text-xs font-black"
-                  style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", color: "#fbbf24" }}
-                >
-                  MAX
+              <div>
+                <label className="text-gray-400 text-xs font-bold block mb-2">Amount to withdraw</label>
+                <div className="flex gap-2">
+                  <input type="number" min="1" max={balance} value={amount}
+                         onChange={e => { setAmount(e.target.value); setError(""); }}
+                         placeholder="0"
+                         className="flex-1 text-2xl font-black text-white py-4 px-4 rounded-2xl"
+                         style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", outline: "none" }} />
+                  <button onClick={() => setAmount(String(balance))}
+                          className="px-4 rounded-2xl text-xs font-black"
+                          style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", color: "#fbbf24" }}>
+                    MAX
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-xl px-4 py-3 text-xs text-gray-500"
+                   style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="flex justify-between">
+                  <span>Destination</span>
+                  <span className="font-mono text-gray-300">{walletPubkey.slice(0, 6)}…{walletPubkey.slice(-4)}</span>
+                </p>
+              </div>
+
+              {error && <p className="text-red-400 text-xs font-bold text-center">{error}</p>}
+
+              <div className="flex gap-3">
+                <button onClick={onClose} className="btn-gray flex-1 py-3">Cancel</button>
+                <button onClick={handleWithdraw} disabled={requested <= 0 || !walletPubkey}
+                        className="flex-1 py-3 rounded-2xl font-black text-base transition-all"
+                        style={{
+                          background: requested <= 0 || !walletPubkey ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg,#14f195,#0ea472)",
+                          color: requested <= 0 || !walletPubkey ? "#4b5563" : "#000",
+                          cursor: requested <= 0 || !walletPubkey ? "not-allowed" : "pointer",
+                        }}>
+                  {requested > 0 ? `Withdraw ${requested.toLocaleString()}` : "Withdraw"}
                 </button>
               </div>
-            </div>
-
-            <div className="rounded-xl px-4 py-3 text-xs text-gray-500"
-                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <p className="flex justify-between">
-                <span>Destination</span>
-                <span className="font-mono text-gray-300">{walletPubkey.slice(0,6)}…{walletPubkey.slice(-4)}</span>
-              </p>
-            </div>
-
-            {error && <p className="text-red-400 text-xs font-bold text-center">{error}</p>}
-
-            <div className="flex gap-3">
-              <button onClick={onClose} className="btn-gray flex-1 py-3">Cancel</button>
-              <button
-                onClick={handleWithdraw}
-                disabled={requested <= 0 || !walletPubkey}
-                className="flex-1 py-3 rounded-2xl font-black text-base transition-all"
-                style={{
-                  background: requested <= 0 || !walletPubkey
-                    ? "rgba(255,255,255,0.06)"
-                    : "linear-gradient(135deg,#14f195,#0ea472)",
-                  color: requested <= 0 || !walletPubkey ? "#4b5563" : "#000",
-                  cursor: requested <= 0 || !walletPubkey ? "not-allowed" : "pointer",
-                }}
-              >
-                {requested > 0 ? `Withdraw ${requested.toLocaleString()}` : "Withdraw"}
-              </button>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
@@ -340,18 +151,9 @@ export default function Home() {
   const { playerName, player, setPlayer } = useGameStore();
   const { connected, connecting, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
-
   const [withdrawOpen, setWithdrawOpen] = useState(false);
-  const [depositOpen,  setDepositOpen]  = useState(false);
-  const [walletInfo, setWalletInfo]     = useState<{ mint: string; decimals: number; treasury: string | null } | null>(null);
 
   const walletPubkey = publicKey?.toBase58() ?? "";
-
-  useEffect(() => { getWalletInfo().then(setWalletInfo).catch(() => {}); }, []);
-
-  function handleSuccess(newTokens: number) {
-    if (player) setPlayer({ ...player, tokens: newTokens });
-  }
 
   if (playerName && player) {
     const badges = player.badges ?? 0;
@@ -371,17 +173,7 @@ export default function Home() {
             playerName={playerName}
             walletPubkey={walletPubkey}
             onClose={() => setWithdrawOpen(false)}
-            onSuccess={handleSuccess}
-          />
-        )}
-        {depositOpen && walletInfo?.treasury && (
-          <DepositModal
-            treasury={walletInfo.treasury}
-            mint={walletInfo.mint}
-            decimals={walletInfo.decimals}
-            playerName={playerName}
-            onClose={() => setDepositOpen(false)}
-            onSuccess={handleSuccess}
+            onSuccess={tokens => { if (player) setPlayer({ ...player, tokens }); }}
           />
         )}
 
@@ -419,7 +211,7 @@ export default function Home() {
               <div style={{ borderTop: "1px solid rgba(200,230,255,0.25)", marginBottom: 10 }} />
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 7, color: "#A8D0FF" }}>TOKENS</span>
+                <span style={{ fontSize: 7, color: "#A8D0FF" }}>FARMED</span>
                 <div style={{
                   background: "rgba(245,158,11,0.18)", border: "1px solid rgba(245,158,11,0.35)",
                   borderRadius: 6, padding: "2px 7px",
@@ -432,33 +224,18 @@ export default function Home() {
 
               <div style={{ borderTop: "1px solid rgba(200,230,255,0.25)", marginBottom: 10 }} />
 
-              {/* Deposit + Withdraw */}
-              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                <button
-                  onClick={() => setDepositOpen(true)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 4,
-                    background: "rgba(153,69,255,0.15)", border: "1px solid rgba(153,69,255,0.4)",
-                    borderRadius: 6, padding: "4px 10px", cursor: "pointer",
-                    fontFamily: "'Press Start 2P', monospace", fontSize: 7,
-                    color: "#b97aff", letterSpacing: 1,
-                  }}
-                >
-                  ↓ DEPOSIT
-                </button>
-                <button
-                  onClick={() => setWithdrawOpen(true)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 4,
-                    background: "rgba(20,241,149,0.10)", border: "1px solid rgba(20,241,149,0.35)",
-                    borderRadius: 6, padding: "4px 10px", cursor: "pointer",
-                    fontFamily: "'Press Start 2P', monospace", fontSize: 7,
-                    color: "#14f195", letterSpacing: 1,
-                  }}
-                >
-                  ↑ WITHDRAW
-                </button>
-              </div>
+              <button
+                onClick={() => setWithdrawOpen(true)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 4,
+                  background: "rgba(20,241,149,0.10)", border: "1px solid rgba(20,241,149,0.35)",
+                  borderRadius: 6, padding: "4px 10px", cursor: "pointer",
+                  fontFamily: "'Press Start 2P', monospace", fontSize: 7,
+                  color: "#14f195", letterSpacing: 1, marginBottom: 10,
+                }}
+              >
+                ↑ WITHDRAW $PKG
+              </button>
 
               <div style={{ borderTop: "1px solid rgba(200,230,255,0.25)", marginBottom: 10 }} />
 
@@ -485,7 +262,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Trainer sprite */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 80 }}>
               {at?.char?.sprite ? (
                 <img src={at.char.sprite} alt={at.char.name}
@@ -512,18 +288,15 @@ export default function Home() {
               const earned = i < badges;
               const next   = i === badges && !player.elite4_available;
               return (
-                <div
-                  key={i}
-                  title={`${gym.name} — ${gym.badge} Badge`}
-                  className={`aspect-square rounded-full flex items-center justify-center border-2 transition-all overflow-hidden ${
-                    earned ? "border-yellow-400 bg-yellow-400/10 shadow-lg shadow-yellow-400/25"
-                    : next  ? "border-yellow-600/30 bg-yellow-900/10 animate-pulse"
-                    : "border-gray-800 bg-gray-900 grayscale opacity-25"
-                  }`}
-                >
+                <div key={i} title={`${gym.name} — ${gym.badge} Badge`}
+                     className={`aspect-square rounded-full flex items-center justify-center border-2 transition-all overflow-hidden ${
+                       earned ? "border-yellow-400 bg-yellow-400/10 shadow-lg shadow-yellow-400/25"
+                       : next  ? "border-yellow-600/30 bg-yellow-900/10 animate-pulse"
+                       : "border-gray-800 bg-gray-900 grayscale opacity-25"
+                     }`}>
                   {earned || next ? (
-                    <img src={gym.sprite} alt={gym.name}
-                         className="w-full h-full object-cover" style={{ imageRendering: "pixelated" }}
+                    <img src={gym.sprite} alt={gym.name} className="w-full h-full object-cover"
+                         style={{ imageRendering: "pixelated" }}
                          onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                   ) : (
                     <span className="text-base">{gym.emoji}</span>
