@@ -196,10 +196,27 @@ def verify_deposit_tx(signature: str, from_wallet: str) -> dict:
     return {"ok": True, "amount": game_amount}
 
 
+def _find_ata_via_rpc(wallet_str: str) -> str | None:
+    """Find the token account for TOKEN_MINT_STR in wallet_str using mint-lookup."""
+    try:
+        resp = _rpc("getTokenAccountsByOwner", [
+            wallet_str,
+            {"mint": TOKEN_MINT_STR},
+            {"encoding": "jsonParsed"},
+        ])
+        accs = (resp.get("result") or {}).get("value") or []
+        if accs:
+            return accs[0].get("pubkey")
+    except Exception as e:
+        print(f"[solana] _find_ata_via_rpc({wallet_str[:8]}…): {e}")
+    return None
+
+
 def send_spl_tokens(to_wallet_str: str, game_amount: int) -> dict:
     """
     Send `game_amount` tokens from treasury to `to_wallet_str`.
-    Handles both SPL Token and Token-2022 automatically.
+    Uses mint-lookup to find ATAs (avoids Pubkey.from_string on program ID).
+    Uses TransferChecked (ix 12) — required for Token-2022 with extensions.
     """
     try:
         from solders.pubkey import Pubkey
@@ -214,31 +231,44 @@ def send_spl_tokens(to_wallet_str: str, game_amount: int) -> dict:
     if not kp:
         return {"ok": False, "error": "Treasury not configured — set TREASURY_PRIVATE_KEY."}
 
-    token_prog_str = _get_token_program()
-    treasury       = kp.pubkey()
-    token_prog     = Pubkey.from_string(token_prog_str)
+    treasury = kp.pubkey()
 
-    from_ata_str = _get_ata(str(treasury), TOKEN_MINT_STR, token_prog_str)
-    to_ata_str   = _get_ata(to_wallet_str, TOKEN_MINT_STR, token_prog_str)
-    from_ata     = Pubkey.from_string(from_ata_str)
-    to_ata       = Pubkey.from_string(to_ata_str)
+    # Find ATAs via RPC mint-lookup (avoids Pubkey.from_string on program ID)
+    from_ata_str = _find_ata_via_rpc(str(treasury))
+    to_ata_str   = _find_ata_via_rpc(to_wallet_str)
 
+    if not from_ata_str:
+        return {"ok": False, "error": "Treasury token account not found — send SCAM to treasury first."}
+    if not to_ata_str:
+        return {"ok": False, "error": "Your token account doesn't exist yet. Send a tiny amount of the token to your wallet first."}
+
+    # Get the token program from the ATA's on-chain owner (authoritative)
     try:
-        acc = _rpc("getAccountInfo", [to_ata_str, {"encoding": "base64"}])
-        if not acc.get("result", {}).get("value"):
-            return {
-                "ok": False,
-                "error": "Your token account doesn't exist yet. Send a tiny amount of the token to your wallet first.",
-            }
+        acc_info       = _rpc("getAccountInfo", [from_ata_str, {"encoding": "base64"}])
+        token_prog_str = (acc_info.get("result", {}).get("value") or {}).get("owner", _TOKEN_2022_PROGRAM)
     except Exception as e:
-        return {"ok": False, "error": f"RPC error checking destination: {e}"}
+        print(f"[solana] getAccountInfo error: {e}")
+        token_prog_str = _TOKEN_2022_PROGRAM
+
+    # Construct Pubkey — fall back to manual base58 decode if from_string fails
+    try:
+        token_prog = Pubkey.from_string(token_prog_str)
+    except Exception:
+        from base58 import b58decode
+        token_prog = Pubkey.from_bytes(b58decode(token_prog_str))
+
+    from_ata = Pubkey.from_string(from_ata_str)
+    to_ata   = Pubkey.from_string(to_ata_str)
+    mint_key = Pubkey.from_string(TOKEN_MINT_STR)
 
     raw_amount = game_amount * (10 ** TOKEN_DECIMALS)
 
-    # Transfer instruction discriminant is 3 for both SPL Token and Token-2022
-    data = struct.pack("<BQ", 3, raw_amount)
+    # TransferChecked (discriminant 12): amount u64 + decimals u8
+    # Required for Token-2022 tokens with extensions; also valid for regular SPL.
+    data = struct.pack("<BQB", 12, raw_amount, TOKEN_DECIMALS)
     accounts = [
         AccountMeta(from_ata, is_signer=False, is_writable=True),
+        AccountMeta(mint_key, is_signer=False, is_writable=False),
         AccountMeta(to_ata,   is_signer=False, is_writable=True),
         AccountMeta(treasury, is_signer=True,  is_writable=False),
     ]
