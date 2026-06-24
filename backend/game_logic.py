@@ -420,11 +420,7 @@ def do_use_stone(player, bag_index: int, stone_name: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def open_trainer_pack(player, db_add_fn) -> dict:
-    """Trainer pack: costs TRAINER_PACK_COST, gives trainer with NO Pokémon."""
-    from pokemon_data import TRAINER_PACK_COST as COST
-    if player.tokens < COST:
-        return {"error": f"not enough tokens (need {COST})"}
-    player.tokens -= COST
+    """Trainer pack: paid on-chain, gives trainer with NO Pokémon."""
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
     trainer = db_add_fn(rarity, "", char_type, char_name, trainer_type)
@@ -432,17 +428,12 @@ def open_trainer_pack(player, db_add_fn) -> dict:
 
 
 def open_pokemon_pack(player) -> dict:
-    """Pokemon pack: costs POKEMON_PACK_COST, gives a Pokémon at Lv 1 in bag."""
-    from pokemon_data import POKEMON_PACK_COST as COST
-    if player.tokens < COST:
-        return {"error": f"not enough tokens (need {COST})"}
-
+    """Pokemon pack: paid on-chain, gives a Pokémon at Lv 1 in bag."""
     bag = _bag_entries(player)
     cap = player.bag_capacity or 10
     if len(bag) >= cap:
         return {"error": "box is full — expand it or release a Pokémon"}
 
-    player.tokens -= COST
     rarity = roll_trainer_rarity()
     pool   = POKEMON_PACK_POOLS.get(rarity, POKEMON_PACK_POOLS["common"])
     pid    = random.choice(pool)
