@@ -305,12 +305,20 @@ export default function Pack() {
     } catch (e: unknown) {
       console.error("Pack open error:", e);
       let msg = "Unknown error";
-      if (e instanceof Error) {
-        msg = e.message;
-      } else if (typeof e === "object" && e !== null) {
+      if (typeof e === "object" && e !== null) {
         const obj = e as Record<string, unknown>;
-        const detail = (obj?.response as Record<string, unknown>)?.data as Record<string, unknown>;
-        msg = String(detail?.detail ?? obj.message ?? obj.code ?? JSON.stringify(e));
+        // axios error: extract backend detail first
+        const respData = (obj?.response as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+        const backendDetail = respData?.detail;
+        if (backendDetail) {
+          msg = String(backendDetail);
+        } else if (e instanceof Error) {
+          msg = e.message;
+        } else {
+          msg = String(obj.message ?? obj.code ?? JSON.stringify(e));
+        }
+      } else if (e instanceof Error) {
+        msg = e.message;
       }
       const cancelled = /rejected|cancelled|4001/i.test(msg);
       setError(cancelled ? "Transaction cancelled." : msg.slice(0, 300));
