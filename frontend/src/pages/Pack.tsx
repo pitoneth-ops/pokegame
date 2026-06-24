@@ -263,9 +263,11 @@ export default function Pack() {
         setTimeout(() => setPhase("reveal_pokemon"), 800);
       }
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail
-        ?? (e as Error)?.message ?? "Error";
-      setError(msg.includes("rejected") ? "Transaction cancelled." : msg);
+      console.error("Pack open error:", e);
+      const axiosDetail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      const jsMessage   = (e as Error)?.message;
+      const msg = axiosDetail ?? jsMessage ?? String(e) ?? "Unknown error";
+      setError(msg.includes("rejected") || msg.includes("cancelled") ? "Transaction cancelled." : msg.slice(0, 200));
       setPhase("idle");
     }
   }
