@@ -87,10 +87,37 @@ def get_token_info() -> dict:
 
 def get_wallet_token_balance(wallet_str: str) -> dict:
     """
-    Return on-chain token balance using getTokenAccountsByOwner.
-    Tries Token-2022 first, then falls back to regular SPL.
-    Avoids Pubkey.from_string on program IDs (can fail in some solders versions).
+    Return on-chain token balance.
+    Strategy 1: direct {mint} lookup — finds the account regardless of program.
+    Strategy 2: {programId} scan for Token-2022, then SPL fallback.
     """
+    # ── Strategy 1: direct mint lookup ───────────────────────────────────────
+    for prog_str in [_TOKEN_2022_PROGRAM, _TOKEN_PROGRAM]:
+        try:
+            resp = _rpc("getTokenAccountsByOwner", [
+                wallet_str,
+                {"mint": TOKEN_MINT_STR},
+                {"encoding": "jsonParsed", "commitment": "confirmed"},
+            ])
+            if "error" in resp:
+                print(f"[solana] mint-lookup RPC error: {resp['error']}")
+            else:
+                accounts = (resp.get("result") or {}).get("value") or []
+                print(f"[solana] mint-lookup → {len(accounts)} accounts (prog hint={prog_str[:8]}…)")
+                if accounts:
+                    acc = accounts[0]
+                    ta  = acc["account"]["data"]["parsed"]["info"]["tokenAmount"]
+                    bal = float(ta.get("uiAmount") or 0)
+                    raw = int(ta.get("amount") or 0)
+                    ata = acc.get("pubkey", "")
+                    print(f"[solana] FOUND via mint-lookup: bal={bal} ata={ata[:8]}…")
+                    return {"balance": bal, "raw": raw, "ata": ata, "token_program": prog_str}
+            break  # mint-lookup is program-independent; no need to retry
+        except Exception as e:
+            print(f"[solana] mint-lookup error: {e}")
+            break
+
+    # ── Strategy 2: programId scan ───────────────────────────────────────────
     for prog_str in [_TOKEN_2022_PROGRAM, _TOKEN_PROGRAM]:
         try:
             resp = _rpc("getTokenAccountsByOwner", [
@@ -99,10 +126,10 @@ def get_wallet_token_balance(wallet_str: str) -> dict:
                 {"encoding": "jsonParsed"},
             ])
             if "error" in resp:
-                print(f"[solana] RPC error (prog={prog_str[:8]}…): {resp['error']}")
+                print(f"[solana] prog-scan RPC error ({prog_str[:8]}…): {resp['error']}")
                 continue
             accounts = (resp.get("result") or {}).get("value") or []
-            print(f"[solana] prog={prog_str[:8]}… → {len(accounts)} accounts")
+            print(f"[solana] prog-scan {prog_str[:8]}… → {len(accounts)} accounts")
             for acc in accounts:
                 try:
                     info = acc["account"]["data"]["parsed"]["info"]
@@ -112,14 +139,14 @@ def get_wallet_token_balance(wallet_str: str) -> dict:
                     bal = float(ta.get("uiAmount") or 0)
                     raw = int(ta.get("amount") or 0)
                     ata = acc.get("pubkey", "")
-                    print(f"[solana] FOUND balance={bal} ata={ata[:8]}… prog={prog_str[:8]}…")
+                    print(f"[solana] FOUND via prog-scan: bal={bal} ata={ata[:8]}… prog={prog_str[:8]}…")
                     return {"balance": bal, "raw": raw, "ata": ata, "token_program": prog_str}
-                except (KeyError, TypeError) as ex:
-                    print(f"[solana] account parse error: {ex}")
+                except (KeyError, TypeError):
                     continue
         except Exception as e:
-            print(f"[solana] getTokenAccountsByOwner failed (prog={prog_str[:8]}…): {e}")
-    print(f"[solana] no balance found for wallet={wallet_str[:8]}… mint={TOKEN_MINT_STR[:8]}…")
+            print(f"[solana] prog-scan error ({prog_str[:8]}…): {e}")
+
+    print(f"[solana] not found — wallet={wallet_str[:8]}… mint={TOKEN_MINT_STR[:8]}…")
     return {"balance": 0.0, "raw": 0, "ata": "", "token_program": _TOKEN_2022_PROGRAM}
 
 

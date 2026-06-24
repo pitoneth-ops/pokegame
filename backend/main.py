@@ -452,29 +452,33 @@ def wallet_balance(wallet: str):
 
 @app.get("/wallet/debug/{wallet}")
 def wallet_debug(wallet: str):
-    """Raw RPC debug — shows what getTokenAccountsByOwner returns for this wallet."""
-    from solana_client import _rpc, TOKEN_MINT_STR, _TOKEN_2022_PROGRAM, _TOKEN_PROGRAM
-    results = {}
+    """Raw RPC debug — tests all balance lookup strategies."""
+    from solana_client import _rpc, TOKEN_MINT_STR, _TOKEN_2022_PROGRAM, _TOKEN_PROGRAM, get_wallet_token_balance
+    results = {"computed_balance": get_wallet_token_balance(wallet)}
+
+    # Mint-direct lookup
+    try:
+        resp = _rpc("getTokenAccountsByOwner", [wallet, {"mint": TOKEN_MINT_STR}, {"encoding": "jsonParsed"}])
+        accs = (resp.get("result") or {}).get("value") or []
+        results["mint_lookup"] = {"count": len(accs), "error": resp.get("error"),
+            "accounts": [{"pubkey": a.get("pubkey"),
+                          "amount": a.get("account",{}).get("data",{}).get("parsed",{}).get("info",{}).get("tokenAmount",{}).get("uiAmount")}
+                         for a in accs]}
+    except Exception as e:
+        results["mint_lookup"] = {"error": str(e)}
+
+    # Program-based lookups (show only SCAM accounts)
     for prog in [_TOKEN_2022_PROGRAM, _TOKEN_PROGRAM]:
         try:
-            resp = _rpc("getTokenAccountsByOwner", [
-                wallet, {"programId": prog}, {"encoding": "jsonParsed"}
-            ])
-            accounts = (resp.get("result") or {}).get("value") or []
-            results[prog] = {
-                "count": len(accounts),
-                "error": resp.get("error"),
-                "accounts": [
-                    {
-                        "pubkey": a.get("pubkey"),
-                        "mint":   a.get("account", {}).get("data", {}).get("parsed", {}).get("info", {}).get("mint"),
-                        "amount": a.get("account", {}).get("data", {}).get("parsed", {}).get("info", {}).get("tokenAmount", {}).get("uiAmount"),
-                    }
-                    for a in accounts
-                ],
-            }
+            resp = _rpc("getTokenAccountsByOwner", [wallet, {"programId": prog}, {"encoding": "jsonParsed"}])
+            accs = (resp.get("result") or {}).get("value") or []
+            scam = [{"pubkey": a.get("pubkey"),
+                     "mint":   a.get("account",{}).get("data",{}).get("parsed",{}).get("info",{}).get("mint"),
+                     "amount": a.get("account",{}).get("data",{}).get("parsed",{}).get("info",{}).get("tokenAmount",{}).get("uiAmount")}
+                    for a in accs if a.get("account",{}).get("data",{}).get("parsed",{}).get("info",{}).get("mint") == TOKEN_MINT_STR]
+            results[f"prog_{prog[:8]}"] = {"total_accounts": len(accs), "scam_found": len(scam), "scam": scam, "error": resp.get("error")}
         except Exception as e:
-            results[prog] = {"error": str(e)}
+            results[f"prog_{prog[:8]}"] = {"error": str(e)}
     return results
 
 
