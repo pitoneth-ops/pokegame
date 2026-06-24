@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PokeGame Wiki</title>
+<style>
+  :root {
+    --bg: #07070f;
+    --surface: #0e0e1c;
+    --surface2: #13131f;
+    --border: rgba(255,255,255,0.07);
+    --yellow: #fbbf24;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --green: #4ade80;
+    --red: #f87171;
+    --text: #e2e8f0;
+    --muted: #6b7280;
+    --accent: #1e3a5f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.7;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #0a0a18, #0d1a3a, #0a0a18);
+    border-bottom: 2px solid rgba(251,191,36,0.3);
+    padding: 40px 24px 32px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.08) 0%, transparent 70%);
+  }
+  header img { width: 56px; height: 56px; image-rendering: pixelated; margin-bottom: 12px; }
+  header h1 {
+    font-size: 2.8rem; font-weight: 900;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b, #fbbf24);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
+  }
+  header p { color: var(--muted); margin-top: 8px; font-size: 1rem; }
+
+  /* ── Nav sidebar ── */
+  .layout { display: flex; min-height: 100vh; }
+  nav {
+    width: 240px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
+  }
+  nav h3 {
+    font-size: 10px; font-weight: 900; letter-spacing: 0.15em;
+    color: var(--muted); padding: 0 20px 12px; text-transform: uppercase;
+  }
+  nav a {
+    display: block; padding: 8px 20px;
+    color: var(--muted); text-decoration: none;
+    font-size: 13px; font-weight: 600;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  nav a:hover { color: var(--yellow); border-left-color: var(--yellow); background: rgba(251,191,36,0.04); }
+
+  /* ── Main content ── */
+  main { flex: 1; max-width: 860px; padding: 48px 40px; margin: 0 auto; }
+
+  section { margin-bottom: 64px; scroll-margin-top: 24px; }
+
+  h2 {
+    font-size: 1.6rem; font-weight: 900;
+    color: white;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(251,191,36,0.25);
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h3 {
+    font-size: 1rem; font-weight: 800;
+    color: var(--blue); margin: 28px 0 12px;
+    text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px;
+  }
+  p { color: #cbd5e1; margin-bottom: 14px; }
+  ul, ol { padding-left: 20px; color: #cbd5e1; margin-bottom: 14px; }
+  li { margin-bottom: 6px; }
+  strong { color: white; }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; margin-bottom: 20px; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead tr { background: var(--accent); }
+  thead th {
+    padding: 10px 16px; text-align: left;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+    color: var(--blue); text-transform: uppercase;
+  }
+  tbody tr { border-top: 1px solid var(--border); }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  tbody td { padding: 10px 16px; color: #cbd5e1; }
+  tbody td:first-child { font-weight: 700; color: white; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .val { font-size: 1.5rem; font-weight: 900; color: var(--yellow); }
+  .stat-card .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Rarity badges ── */
+  .badge {
+    display: inline-block; padding: 2px 10px;
+    border-radius: 9999px; font-size: 12px; font-weight: 800;
+  }
+  .badge-common  { background: rgba(71,85,105,0.2); color: #94a3b8; border: 1px solid rgba(71,85,105,0.4); }
+  .badge-rare    { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.35); }
+  .badge-epic    { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.35); }
+  .badge-legend  { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.35); }
+
+  /* ── Type pills ── */
+  .types { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .type-pill {
+    padding: 3px 10px; border-radius: 9999px;
+    font-size: 11px; font-weight: 800;
+  }
+
+  /* ── Tip boxes ── */
+  .tip { border-radius: 12px; padding: 14px 18px; margin-bottom: 12px; }
+  .tip-green { background: rgba(34,197,94,0.07); border: 1px solid rgba(34,197,94,0.2); color: #86efac; }
+  .tip-red   { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5; }
+  .tip-yellow{ background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.2); color: #fde68a; }
+  .tip-blue  { background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.2); color: #93c5fd; }
+  .tip strong { color: inherit; }
+
+  /* ── Progressão steps ── */
+  .steps { list-style: none; padding: 0; }
+  .steps li {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(251,191,36,0.15); border: 2px solid rgba(251,191,36,0.4);
+    color: var(--yellow); font-weight: 900; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .step-body strong { color: white; display: block; font-size: 15px; margin-bottom: 3px; }
+  .step-body span { color: var(--muted); font-size: 13px; }
+
+  /* ── FAQ ── */
+  details {
+    border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 8px; overflow: hidden;
+  }
+  summary {
+    padding: 14px 18px; cursor: pointer;
+    font-weight: 700; color: white; list-style: none;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface2);
+  }
+  summary::after { content: '▾'; color: var(--yellow); font-size: 16px; }
+  details[open] summary::after { content: '▴'; }
+  details[open] summary { border-bottom: 1px solid var(--border); }
+  .faq-body { padding: 14px 18px; color: #cbd5e1; font-size: 14px; }
+
+  /* ── XP table highlight ── */
+  .xp-row td:nth-child(2) { color: var(--yellow); font-weight: 800; }
+
+  /* ── NPC cards ── */
+  .npc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .npc-card {
+    border-radius: 14px; padding: 16px; text-align: center;
+    border: 1px solid var(--border); background: var(--surface2);
+  }
+  .npc-card img { height: 72px; image-rendering: pixelated; margin: 0 auto 8px; display: block; }
+  .npc-card .name { font-weight: 900; color: white; font-size: 14px; }
+  .npc-card .reward { font-size: 13px; color: var(--green); margin: 4px 0; }
+  .npc-card .odds { font-size: 20px; font-weight: 900; margin: 6px 0 2px; }
+  .npc-card .lbl { font-size: 11px; color: var(--muted); }
+  .odds-easy { color: #4ade80; }
+  .odds-normal { color: #fbbf24; }
+  .odds-hard { color: #fb923c; }
+  .odds-impossible { color: #f87171; }
+
+  /* ── Gym list ── */
+  .gym-list { display: flex; flex-direction: column; gap: 8px; }
+  .gym-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px; border-radius: 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    transition: border-color 0.15s;
+  }
+  .gym-item:hover { border-color: rgba(251,191,36,0.3); }
+  .gym-num { width: 28px; height: 28px; border-radius: 50%; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: var(--yellow); font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .gym-emoji { font-size: 24px; }
+  .gym-info { flex: 1; }
+  .gym-info strong { color: white; display: block; font-size: 15px; }
+  .gym-info span { color: var(--muted); font-size: 12px; }
+  .gym-reward { color: var(--yellow); font-weight: 900; font-size: 14px; }
+
+  /* ── Elite 4 ── */
+  .elite-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .elite-card {
+    background: linear-gradient(145deg, #1a0840, #0c0020);
+    border: 1px solid rgba(168,85,247,0.3);
+    border-radius: 12px; padding: 14px; text-align: center;
+  }
+  .elite-card .em { font-size: 32px; }
+  .elite-card .nm { font-weight: 900; color: white; font-size: 13px; margin: 6px 0 2px; }
+  .elite-card .tp { font-size: 11px; color: #c084fc; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+  /* ── Footer ── */
+  footer { text-align: center; padding: 40px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+
+  @media (max-width: 768px) {
+    nav { display: none; }
+    main { padding: 24px 16px; }
+    .elite-grid { grid-template-columns: repeat(2, 1fr); }
+    header h1 { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png" alt="Pikachu" />
+  <h1>PokeGame Wiki</h1>
+  <p>Guia oficial completo · Região de Kanto · Geração I</p>
+</header>
+
+<div class="layout">
+
+<!-- ── Sidebar ── -->
+<nav>
+  <h3>Conteúdo</h3>
+  <a href="#sobre">🎮 Sobre o Jogo</a>
+  <a href="#comecar">🚀 Como Começar</a>
+  <a href="#packs">🎴 Packs</a>
+  <a href="#treinadores">👥 Treinadores</a>
+  <a href="#nivel">⭐ Níveis e XP</a>
+  <a href="#slots">🎯 Slots de Pokémon</a>
+  <a href="#batalhas">⚔️ Batalhas</a>
+  <a href="#tipos">📊 Tipos</a>
+  <a href="#ginasios">🏟️ Ginásios</a>
+  <a href="#elite">👑 Elite dos 4</a>
+  <a href="#box">📦 Box</a>
+  <a href="#tokens">💰 Economia</a>
+  <a href="#queimar">🔥 Queimar</a>
+  <a href="#progressao">📈 Progressão</a>
+  <a href="#dicas">💡 Dicas</a>
+  <a href="#faq">❓ FAQ</a>
+</nav>
+
+<!-- ── Main ── -->
+<main>
+
+<!-- SOBRE -->
+<section id="sobre">
+  <h2>🎮 Sobre o Jogo</h2>
+  <p><strong>PokeGame</strong> é um jogo de cartas colecionáveis com batalhas baseado no universo Pokémon da região de Kanto (Geração I).</p>
+  <p>Você coleciona <strong>Treinadores</strong>, monta times de <strong>Pokémon</strong>, desafia <strong>NPCs</strong>, conquista insígnias em <strong>Ginásios</strong> e tenta derrotar a <strong>Elite dos 4</strong> para se tornar Campeão.</p>
+  <div class="card-grid">
+    <div class="stat-card"><div class="val">151</div><div class="lbl">Pokémon disponíveis</div></div>
+    <div class="stat-card"><div class="val">8</div><div class="lbl">Ginásios de Kanto</div></div>
+    <div class="stat-card"><div class="val">4</div><div class="lbl">Raridades de Treinador</div></div>
+    <div class="stat-card"><div class="val">💰500</div><div class="lbl">Tokens iniciais</div></div>
+  </div>
+</section>
+
+<!-- COMEÇAR -->
+<section id="comecar">
+  <h2>🚀 Como Começar</h2>
+  <ul class="steps">
+    <li><div class="step-num">1</div><div class="step-body"><strong>Crie seu nome de usuário</strong><span>Único e permanente. Você começa com 💰 500 tokens.</span></div></li>
+    <li><div class="step-num">2</div><div class="step-body"><strong>Abra seu primeiro Pack</strong><span>Custa 💰 100 tokens. Você recebe 1 Treinador com Pokémon inicial.</span></div></li>
+    <li><div class="step-num">3</div><div class="step-body"><strong>Vá para Batalhas</strong><span>Desafie o Youngster Joey (80% de chance de vitória) para acumular tokens.</span></div></li>
+    <li><div class="step-num">4</div><div class="step-body"><strong>Invista em mais Packs</strong><span>Abra mais packs, queime Comuns para Raros, fortaleça seu time.</span></div></li>
+    <li><div class="step-num">5</div><div class="step-body"><strong>Acumule Gym Passes e desafie Ginásios</strong><span>Com 8 insígnias, você acessa a Elite dos 4 e o título de Campeão.</span></div></li>
+  </ul>
+</section>
+
+<!-- PACKS -->
+<section id="packs">
+  <h2>🎴 Packs</h2>
+  <p>Cada pack custa <strong>💰 100 tokens</strong> e garante <strong>1 Treinador</strong> com raridade aleatória e um Pokémon inicial já equipado.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Raridade</th><th>Batalhas/Dia</th><th>Multiplicador</th><th>Pokémon do Pool</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-common">⬜ Comum</span></td><td>1</td><td>×1.0</td><td>Básicos (Caterpie, Rattata…)</td></tr>
+        <tr><td><span class="badge badge-rare">🔵 Raro</span></td><td>2</td><td>×1.25</td><td>Evoluídos (Arbok, Sandslash…)</td></tr>
+        <tr><td><span class="badge badge-epic">🟣 Épico</span></td><td>3</td><td>×1.5</td><td>Starters, Gengar, Pikachu…</td></tr>
+        <tr><td><span class="badge badge-legend">🟡 Lendário</span></td><td>5</td><td>×2.0</td><td>Mewtwo, Mew, Zapdos, Gyarados…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="tip tip-yellow"><strong>Dica:</strong> Treinadores Lendários são os Gym Leaders de Kanto — Brock, Misty, Lt. Surge, Erika, Koga, Sabrina, Blaine e Giovanni.</div>
+</section>
+
+<!-- TREINADORES -->
+<section id="treinadores">
+  <h2>👥 Treinadores</h2>
+  <p>Cada treinador tem um tipo principal que define quais Pokémon pode usar. <strong>Treinadores Lendários são Universais</strong> — podem equipar qualquer Pokémon.</p>
+
+  <h3>Personagens por Raridade</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Raridade</th><th>Personagens</th><th>Tipos</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-common">Comum</span></td><td>Garotão, Garota, Caçador de Insetos, Campista, Piqueniqueira</td><td>Normal, Bug, Água, Grama, Fada, Pedra, Terra</td></tr>
+        <tr><td><span class="badge badge-rare">Raro</span></td><td>Alpinista, Marinheiro, Pescador, Guitarrista, Roqueiro</td><td>Pedra, Terra, Luta, Água, Gelo, Elétrico, Normal</td></tr>
+        <tr><td><span class="badge badge-epic">Épico</span></td><td>Top Treinador/a, Cientista, Médium, Criador de Aves</td><td>Psíquico, Dragão, Luta, Água, Fada, Fogo, Fantasma, Voador</td></tr>
+        <tr><td><span class="badge badge-legend">Lendário</span></td><td>Brock, Misty, Lt. Surge, Erika, Koga, Sabrina, Blaine, Giovanni</td><td><strong>Universal</strong> (qualquer Pokémon)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- NÍVEIS -->
+<section id="nivel">
+  <h2>⭐ Níveis e XP</h2>
+  <p>Cada treinador tem seu próprio nível e barra de XP. A fórmula é <strong>500 × 1.1^(nível-1)</strong>.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Nível</th><th>XP Necessário</th></tr></thead>
+      <tbody class="xp-row">
+        <tr><td>1 → 2</td><td>500 XP</td></tr>
+        <tr><td>2 → 3</td><td>550 XP</td></tr>
+        <tr><td>3 → 4</td><td>605 XP</td></tr>
+        <tr><td>4 → 5</td><td>665 XP</td></tr>
+        <tr><td>5 → 6</td><td>732 XP</td></tr>
+        <tr><td>10 → 11</td><td>~1.297 XP</td></tr>
+        <tr><td>20 → 21</td><td>~3.364 XP</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Cap de Nível — Custo de Desbloqueio</h3>
+  <p>Por padrão, o cap é <strong>Lv. 5</strong>. Para ir além, gaste tokens:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Faixa Desbloqueada</th><th>Custo</th></tr></thead>
+      <tbody>
+        <tr><td>Lv. 6 – 10</td><td>💰 500</td></tr>
+        <tr><td>Lv. 11 – 15</td><td>💰 1.000</td></tr>
+        <tr><td>Lv. 16 – 20</td><td>💰 2.000</td></tr>
+        <tr><td>Lv. 21 – 25</td><td>💰 4.000</td></tr>
+        <tr><td>Lv. 26 – 30</td><td>💰 8.000</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>XP por Modalidade de Batalha</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Modalidade</th><th>XP Ganho</th></tr></thead>
+      <tbody>
+        <tr><td>Youngster (Fácil)</td><td>100 – 500 XP</td></tr>
+        <tr><td>Lass (Normal)</td><td>400 – 900 XP</td></tr>
+        <tr><td>Biker (Difícil)</td><td>1.000 – 1.600 XP</td></tr>
+        <tr><td>Elite Trainer (Impossível)</td><td>3.000 XP (fixo)</td></tr>
+        <tr><td>🏟️ Ginásio</td><td>1 nível inteiro de XP</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- SLOTS -->
+<section id="slots">
+  <h2>🎯 Slots de Pokémon</h2>
+  <p>Cada treinador começa com <strong>1 slot</strong>. Novos slots desbloqueiam ao atingir certos níveis:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Nível Atingido</th><th>Slots Disponíveis</th></tr></thead>
+      <tbody>
+        <tr><td>Início</td><td>1 slot</td></tr>
+        <tr><td>Lv. 5</td><td>2 slots</td></tr>
+        <tr><td>Lv. 10</td><td>3 slots</td></tr>
+        <tr><td>Lv. 15</td><td>4 slots</td></tr>
+        <tr><td>Lv. 20</td><td>5 slots</td></tr>
+        <tr><td>Lv. 25</td><td>6 slots (máximo)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="tip tip-blue"><strong>Importante:</strong> Você só pode equipar mais Pokémon depois de alcançar os níveis acima. Lembre-se de desbloquear o cap de nível para conseguir subir além de Lv. 5.</div>
+</section>
+
+<!-- BATALHAS -->
+<section id="batalhas">
+  <h2>⚔️ Batalhas</h2>
+  <p>Na aba <strong>Batalha</strong> você enfrenta 4 adversários NPC com dificuldades diferentes. A chance de vitória é fixa por dificuldade.</p>
+
+  <div class="npc-grid">
+    <div class="npc-card">
+      <img src="https://play.pokemonshowdown.com/sprites/trainers/youngster.png" alt="Youngster" onerror="this.style.display='none'" />
+      <div class="name">Youngster Joey</div>
+      <div class="reward">+💰 8 por vitória</div>
+      <div class="odds odds-easy">80%</div>
+      <div class="lbl">Chance de vitória</div>
+      <div style="margin-top:8px;font-size:11px;color:#6b7280;">Drop: 1% Pokémon · 0.5% Pass<br>XP: 100–500</div>
+    </div>
+    <div class="npc-card">
+      <img src="https://play.pokemonshowdown.com/sprites/trainers/lass.png" alt="Lass" onerror="this.style.display='none'" />
+      <div class="name">Lass Karen</div>
+      <div class="reward">+💰 25 por vitória</div>
+      <div class="odds odds-normal">50%</div>
+      <div class="lbl">Chance de vitória</div>
+      <div style="margin-top:8px;font-size:11px;color:#6b7280;">Drop: 2% Pokémon · 1% Pass<br>XP: 400–900</div>
+    </div>
+    <div class="npc-card">
+      <img src="https://play.pokemonshowdown.com/sprites/trainers/hiker.png" alt="Biker" onerror="this.style.display='none'" />
+      <div class="name">Biker Mondo</div>
+      <div class="reward">+💰 80 por vitória</div>
+      <div class="odds odds-hard">30%</div>
+      <div class="lbl">Chance de vitória</div>
+      <div style="margin-top:8px;font-size:11px;color:#6b7280;">Drop: 5% Pokémon · 5% Pass<br>XP: 1.000–1.600</div>
+    </div>
+    <div class="npc-card">
+      <img src="https://play.pokemonshowdown.com/sprites/trainers/cooltrainerm.png" alt="Elite" onerror="this.style.display='none'" />
+      <div class="name">Elite Trainer</div>
+      <div class="reward">+💰 250 por vitória</div>
+      <div class="odds odds-impossible">10%</div>
+      <div class="lbl">Chance de vitória</div>
+      <div style="margin-top:8px;font-size:11px;color:#6b7280;">Drop: 15% Pokémon · 15% Pass<br>XP: 3.000 (fixo)</div>
+    </div>
+  </div>
+
+  <div class="tip tip-green"><strong>Dica de farm:</strong> O Biker Mondo (30%, 💰 80) tem a melhor relação risco/recompensa para iniciantes. O Elite Trainer (10%, 💰 250 + 15% drop) vale mais com Treinadores Lendários que têm 5 batalhas/dia.</div>
+</section>
+
+<!-- TIPOS -->
+<section id="tipos">
+  <h2>📊 Tipos e Matchups</h2>
+  <p>O tipo do seu treinador afeta a chance de vitória nos Ginásios e Elite dos 4.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Matchup</th><th>Efeito</th></tr></thead>
+      <tbody>
+        <tr><td>✅ Super Efetivo</td><td style="color:#4ade80;font-weight:800;">90% de chance de vitória</td></tr>
+        <tr><td>➡️ Neutro</td><td style="color:#fbbf24;font-weight:800;">50% de chance de vitória</td></tr>
+        <tr><td>❌ Pouco Efetivo</td><td style="color:#f87171;font-weight:800;">10% de chance de vitória</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Seu Tipo</th><th>Vantagem contra</th><th>Desvantagem contra</th></tr></thead>
+      <tbody>
+        <tr><td>🔥 Fogo</td><td>Grama, Bug, Gelo</td><td>Água, Pedra, Terra, Dragão</td></tr>
+        <tr><td>💧 Água</td><td>Fogo, Pedra, Terra</td><td>Grama, Dragão</td></tr>
+        <tr><td>🌿 Grama</td><td>Água, Pedra, Terra</td><td>Fogo, Voador, Venenoso, Bug</td></tr>
+        <tr><td>⚡ Elétrico</td><td>Água, Voador</td><td>Grama, Terra</td></tr>
+        <tr><td>🔮 Psíquico</td><td>Lutador, Venenoso</td><td>Sombrio, Aço</td></tr>
+        <tr><td>🐉 Dragão</td><td>Dragão</td><td>Gelo, Fada</td></tr>
+        <tr><td>👻 Fantasma</td><td>Psíquico, Fantasma</td><td>Sombrio</td></tr>
+        <tr><td>🥊 Lutador</td><td>Normal, Pedra, Gelo</td><td>Psíquico, Voador, Fada</td></tr>
+        <tr><td>🌍 Terra</td><td>Fogo, Elétrico, Pedra, Venenoso</td><td>Grama, Bug</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="tip tip-blue">Consulte a aba <strong>Tipos</strong> no jogo para a tabela completa interativa com sprites de todos os 18 tipos.</div>
+</section>
+
+<!-- GINÁSIOS -->
+<section id="ginasios">
+  <h2>🏟️ Ginásios</h2>
+  <p>Para desafiar um Ginásio, você precisa de um <strong>🎫 Battle Gym Pass</strong> (obtido como drop em batalhas NPC). Cada tentativa consome 1 pass, mesmo se perder.</p>
+
+  <div class="gym-list">
+    <div class="gym-item"><div class="gym-num">1</div><div class="gym-emoji">🪨</div><div class="gym-info"><strong>Brock</strong><span>Pewter City · Tipo: Pedra · Use Água ou Grama</span></div><div class="gym-reward">💰 1.500</div></div>
+    <div class="gym-item"><div class="gym-num">2</div><div class="gym-emoji">💧</div><div class="gym-info"><strong>Misty</strong><span>Cerulean City · Tipo: Água · Use Grama ou Elétrico</span></div><div class="gym-reward">💰 2.000</div></div>
+    <div class="gym-item"><div class="gym-num">3</div><div class="gym-emoji">⚡</div><div class="gym-info"><strong>Lt. Surge</strong><span>Vermilion City · Tipo: Elétrico · Use Terra</span></div><div class="gym-reward">💰 2.500</div></div>
+    <div class="gym-item"><div class="gym-num">4</div><div class="gym-emoji">🌿</div><div class="gym-info"><strong>Erika</strong><span>Celadon City · Tipo: Grama · Use Fogo ou Voador</span></div><div class="gym-reward">💰 3.000</div></div>
+    <div class="gym-item"><div class="gym-num">5</div><div class="gym-emoji">☠️</div><div class="gym-info"><strong>Koga</strong><span>Fuchsia City · Tipo: Venenoso · Use Psíquico ou Terra</span></div><div class="gym-reward">💰 3.500</div></div>
+    <div class="gym-item"><div class="gym-num">6</div><div class="gym-emoji">🔮</div><div class="gym-info"><strong>Sabrina</strong><span>Saffron City · Tipo: Psíquico · Use Fantasma ou Sombrio</span></div><div class="gym-reward">💰 4.000</div></div>
+    <div class="gym-item"><div class="gym-num">7</div><div class="gym-emoji">🔥</div><div class="gym-info"><strong>Blaine</strong><span>Cinnabar Island · Tipo: Fogo · Use Água, Pedra ou Terra</span></div><div class="gym-reward">💰 4.500</div></div>
+    <div class="gym-item"><div class="gym-num">8</div><div class="gym-emoji">🌍</div><div class="gym-info"><strong>Giovanni</strong><span>Viridian City · Tipo: Terra · Use Água ou Grama</span></div><div class="gym-reward">💰 5.000</div></div>
+  </div>
+  <br>
+  <div class="tip tip-yellow"><strong>Bônus de Ginásio:</strong> Cada vitória dá 1 insígnia + tokens de recompensa + <strong>1 nível inteiro de XP</strong> para o seu treinador.</div>
+</section>
+
+<!-- ELITE 4 -->
+<section id="elite">
+  <h2>👑 Elite dos 4</h2>
+  <p>Desbloqueada após conquistar as <strong>8 insígnias</strong> de Kanto. Você enfrenta todos os 4 membros em sequência.</p>
+
+  <div class="elite-grid">
+    <div class="elite-card"><div class="em">🧊</div><div class="nm">Lorelei</div><div class="tp">Tipo: Gelo</div></div>
+    <div class="elite-card"><div class="em">🥊</div><div class="nm">Bruno</div><div class="tp">Tipo: Lutador</div></div>
+    <div class="elite-card"><div class="em">👻</div><div class="nm">Agatha</div><div class="tp">Tipo: Fantasma</div></div>
+    <div class="elite-card"><div class="em">🐉</div><div class="nm">Lance</div><div class="tp">Tipo: Dragão</div></div>
+  </div>
+  <br>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Recompensa por vitória</div>
+        <div style="font-size:2rem;font-weight:900;color:var(--green)">💰 10.000 tokens</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;color:var(--muted)">Após vencer</div>
+        <div style="font-weight:700;color:white">Ciclo reinicia</div>
+        <div style="font-size:12px;color:var(--muted)">Insígnias resetam</div>
+      </div>
+    </div>
+  </div>
+  <div class="tip tip-blue">A chance de vitória é calculada pela <strong>média dos 4 matchups de tipo</strong>. Treinadores de Fogo têm vantagem contra Gelo (Lorelei) mas desvantagem contra Dragão (Lance). Escolha bem!</div>
+</section>
+
+<!-- BOX -->
+<section id="box">
+  <h2>📦 Box de Pokémon</h2>
+  <p>A <strong>Box</strong> armazena Pokémon recebidos como drop em batalhas. Da Box você equipa os Pokémon nos treinadores.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Capacidade Atual</th><th>Custo para +5 slots</th></tr></thead>
+      <tbody>
+        <tr><td>10 slots (padrão)</td><td>💰 500</td></tr>
+        <tr><td>15 slots</td><td>💰 1.000</td></tr>
+        <tr><td>20 slots</td><td>💰 2.000</td></tr>
+        <tr><td>25 slots</td><td>💰 4.000</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Como Equipar</h3>
+  <p>Para equipar um Pokémon da Box em um treinador, dois requisitos devem ser atendidos:</p>
+  <ol>
+    <li>O treinador precisa ter <strong>slot disponível</strong> (depende do nível)</li>
+    <li>O tipo do Pokémon deve <strong>corresponder ao tipo do treinador</strong> — ou o treinador deve ser <strong>Universal (Lendário)</strong></li>
+  </ol>
+  <div class="tip tip-red"><strong>Atenção:</strong> Se a Box estiver cheia, Pokémon dropados em batalha são perdidos. Expanda antes!</div>
+</section>
+
+<!-- TOKENS -->
+<section id="tokens">
+  <h2>💰 Tokens e Economia</h2>
+  <div class="card-grid">
+    <div class="card">
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">Como Ganhar</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Batalha Fácil</span><span style="color:var(--green);font-weight:700">+💰 8</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Batalha Normal</span><span style="color:var(--green);font-weight:700">+💰 25</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Batalha Difícil</span><span style="color:var(--green);font-weight:700">+💰 80</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Batalha Impossível</span><span style="color:var(--green);font-weight:700">+💰 250</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Ginásio</span><span style="color:var(--green);font-weight:700">+💰 1.500–5.000</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Elite dos 4</span><span style="color:var(--green);font-weight:700">+💰 10.000</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">Como Gastar</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Abrir Pack</span><span style="color:var(--red);font-weight:700">💰 100</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Comprar Pokémon</span><span style="color:var(--red);font-weight:700">💰 400</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Desbloquear nível</span><span style="color:var(--red);font-weight:700">💰 500–8.000</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Expandir Box</span><span style="color:var(--red);font-weight:700">💰 500–4.000</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QUEIMAR -->
+<section id="queimar">
+  <h2>🔥 Queimar Treinadores</h2>
+  <p>Queime <strong>3 treinadores do mesmo tipo</strong> para gerar 1 treinador da raridade superior.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Ingredientes</th><th>Resultado</th></tr></thead>
+      <tbody>
+        <tr><td>3× <span class="badge badge-common">⬜ Comum</span></td><td><span class="badge badge-rare">🔵 Raro</span></td></tr>
+        <tr><td>3× <span class="badge badge-rare">🔵 Raro</span></td><td><span class="badge badge-epic">🟣 Épico</span></td></tr>
+        <tr><td>3× <span class="badge badge-epic">🟣 Épico</span></td><td><span class="badge badge-legend">🟡 Lendário</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="tip tip-yellow">O novo treinador é gerado com Pokémon e personagem aleatórios. Você pode conseguir qualquer Gym Leader queimando 3 Épicos!</div>
+</section>
+
+<!-- PROGRESSÃO -->
+<section id="progressao">
+  <h2>📈 Progressão Recomendada</h2>
+
+  <div class="card" style="margin-bottom:12px;border-color:rgba(71,85,105,0.4)">
+    <div style="color:#94a3b8;font-weight:900;font-size:12px;letter-spacing:0.1em;margin-bottom:12px">FASE 1 — PRIMEIROS PASSOS</div>
+    <ul style="color:#cbd5e1;font-size:14px;display:flex;flex-direction:column;gap:6px">
+      <li>✅ Abra 3–4 packs para conseguir ao menos 1 Raro</li>
+      <li>✅ Bata no Youngster Joey até acumular tokens</li>
+      <li>✅ Compre Pokémon adicionais para seu treinador (💰 400)</li>
+      <li>✅ Acumule 3 Comuns para queimar em 1 Raro</li>
+    </ul>
+  </div>
+
+  <div class="card" style="margin-bottom:12px;border-color:rgba(59,130,246,0.3)">
+    <div style="color:#60a5fa;font-weight:900;font-size:12px;letter-spacing:0.1em;margin-bottom:12px">FASE 2 — GINÁSIOS (500–2.000 tokens)</div>
+    <ul style="color:#cbd5e1;font-size:14px;display:flex;flex-direction:column;gap:6px">
+      <li>✅ Acumule Gym Passes batendo em NPCs</li>
+      <li>✅ Desbloqueie Lv. 6–10 do melhor treinador (💰 500)</li>
+      <li>✅ Desafie Brock (Pedra 🪨) com treinador Água ou Grama</li>
+      <li>✅ Continue avançando pelos 8 ginásios em ordem</li>
+    </ul>
+  </div>
+
+  <div class="card" style="margin-bottom:12px;border-color:rgba(168,85,247,0.3)">
+    <div style="color:#c084fc;font-weight:900;font-size:12px;letter-spacing:0.1em;margin-bottom:12px">FASE 3 — TREINADORES ÉPICOS E LENDÁRIOS</div>
+    <ul style="color:#cbd5e1;font-size:14px;display:flex;flex-direction:column;gap:6px">
+      <li>✅ Queime Raros para conseguir Épicos</li>
+      <li>✅ Desbloqueie mais slots de Pokémon subindo de nível</li>
+      <li>✅ Expanda sua Box se acumular muitos drops</li>
+      <li>✅ Mire em conseguir um treinador Lendário</li>
+    </ul>
+  </div>
+
+  <div class="card" style="border-color:rgba(245,158,11,0.4);background:linear-gradient(135deg,rgba(245,158,11,0.05),transparent)">
+    <div style="color:#fbbf24;font-weight:900;font-size:12px;letter-spacing:0.1em;margin-bottom:12px">FASE 4 — ELITE DOS 4 👑</div>
+    <ul style="color:#cbd5e1;font-size:14px;display:flex;flex-direction:column;gap:6px">
+      <li>✅ Conquiste as 8 insígnias</li>
+      <li>✅ Escolha tipo com vantagem contra Gelo, Lutador, Fantasma e Dragão</li>
+      <li>✅ Derrote Lorelei → Bruno → Agatha → Lance</li>
+      <li>✅ Recolha os 💰 10.000 tokens e inicie um novo ciclo</li>
+    </ul>
+  </div>
+</section>
+
+<!-- DICAS -->
+<section id="dicas">
+  <h2>💡 Dicas para Iniciantes</h2>
+  <h3>✅ O que fazer</h3>
+  <div class="tip tip-green"><strong>Bata no adversário mais difícil que puder vencer.</strong> A relação risco/recompensa do Biker (30%, 💰 80) é muito melhor que o Youngster (80%, 💰 8).</div>
+  <div class="tip tip-green"><strong>Verifique o tipo do ginásio antes de ir.</strong> Levar Grama contra Brock (Pedra) dá 90% de chance. Levar Fogo dá 10%.</div>
+  <div class="tip tip-green"><strong>Desbloqueie o cap de nível cedo.</strong> Slots de Pokémon só abrem nos níveis 5, 10, 15... Libere o cap logo para evoluir.</div>
+  <div class="tip tip-green"><strong>Treinadores Lendários são universais.</strong> Giovanni ou Misty equipam qualquer Pokémon — incluindo Mewtwo e Mew.</div>
+  <h3>❌ O que evitar</h3>
+  <div class="tip tip-red"><strong>Não gaste todos os tokens em packs logo de início.</strong> Reserve ao menos 500 para desbloquear o cap de nível.</div>
+  <div class="tip tip-red"><strong>Não ignore a Box.</strong> Pokémon dropados ficam lá esperando — equipe-os nos treinadores.</div>
+  <div class="tip tip-red"><strong>Não queime treinadores raros cedo demais.</strong> Espere ter 3 do mesmo tipo antes de queimar.</div>
+  <div class="tip tip-red"><strong>Não batalhe em ginásio sem Gym Pass.</strong> Cada tentativa consome 1 pass, win ou lose.</div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <h2>❓ Perguntas Frequentes</h2>
+
+  <details><summary>Posso ter mais de um treinador?</summary><div class="faq-body">Sim. Você pode ter quantos treinadores quiser — cada um batalha de forma independente com seu próprio cooldown diário e barra de XP.</div></details>
+
+  <details><summary>O treinador ativo importa?</summary><div class="faq-body">Para Ginásios e Elite dos 4, o treinador ativo é quem batalha. Para batalhas NPC, você escolhe qual treinador enviar na hora.</div></details>
+
+  <details><summary>O que acontece se a Box encher?</summary><div class="faq-body">Pokémon dropados em batalha são perdidos se a Box estiver cheia. Expanda a Box (💰 500 para +5 slots) ou libere Pokémon que não usa.</div></details>
+
+  <details><summary>Posso remover um Pokémon do time do treinador?</summary><div class="faq-body">Sim. Na aba Box, você pode desequipar um Pokémon de volta para a Box, ou liberá-lo permanentemente (ação irreversível).</div></details>
+
+  <details><summary>Os Pokémon dos NPCs são sempre os mesmos?</summary><div class="faq-body">Não. Os NPCs têm times aleatórios que mudam a cada sessão de batalha — sempre da geração de Kanto (151 Pokémon).</div></details>
+
+  <details><summary>Batalha de Ginásio consome Gym Pass mesmo se eu perder?</summary><div class="faq-body">Sim. Cada tentativa de ginásio consome 1 Gym Pass, independente do resultado. Acumule passes antes de desafiar.</div></details>
+
+  <details><summary>Como consigo Mewtwo ou Mew?</summary><div class="faq-body">Mewtwo e Mew só existem no pool de Pokémon de treinadores <strong>Lendários</strong>. Para equipá-los, você precisa de um treinador Lendário (Universal). Eles também podem dropar em batalhas se o treinador for Universal.</div></details>
+
+  <details><summary>O que acontece ao vencer a Elite dos 4?</summary><div class="faq-body">Você ganha 💰 10.000 tokens, o título de Campeão e suas insígnias reiniciam — um novo ciclo começa. Você pode desafiar quantas vezes quiser.</div></details>
+</section>
+
+</main>
+</div>
+
+<footer>
+  PokeGame Wiki · Região de Kanto · Geração I · 151 Pokémon · Última atualização: Jun/2026
+</footer>
+
+</body>
+</html>

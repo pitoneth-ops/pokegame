@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="55%" r="50%">
+      <stop offset="0%"   stop-color="#1e0800"/>
+      <stop offset="100%" stop-color="#080300"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="60%" r="48%">
+      <stop offset="0%"   stop-color="#FF6200" stop-opacity="0.55"/>
+      <stop offset="60%"  stop-color="#FF3000" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#FF1000" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="circ"><circle cx="256" cy="256" r="248"/></clipPath>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="256" cy="256" r="256" fill="url(#bg)"/>
+
+  <!-- Glow -->
+  <circle cx="256" cy="256" r="256" fill="url(#glow)"/>
+
+  <!-- Flames (clipped to circle) -->
+  <g clip-path="url(#circ)">
+    <!-- Far-left flame -->
+    <path d="M108,512 C96,478 76,466 83,436 C90,406 110,400 110,400
+             C110,400 130,407 132,432 C134,457 118,476 108,512Z" fill="#CC2800" opacity="0.55"/>
+    <!-- Left flame -->
+    <path d="M172,512 C156,470 130,455 140,412 C150,369 178,360 178,360
+             C178,360 204,372 207,408 C210,444 190,466 172,512Z" fill="#EE4400" opacity="0.75"/>
+    <path d="M172,502 C160,474 140,460 148,424 C156,388 176,380 176,380
+             C176,380 196,388 199,420 C202,452 184,470 172,502Z" fill="#FF7700" opacity="0.6"/>
+    <!-- Center main flame -->
+    <path d="M256,512 C236,462 190,438 204,376 C218,314 256,300 256,300
+             C256,300 294,314 308,376 C322,438 276,462 256,512Z" fill="#FF4400"/>
+    <path d="M256,500 C240,456 208,436 220,382 C232,328 256,316 256,316
+             C256,316 280,328 292,382 C304,436 272,456 256,500Z" fill="#FF7700"/>
+    <path d="M256,482 C244,446 224,430 234,390 C244,350 256,340 256,340
+             C256,340 268,350 278,390 C288,430 268,446 256,482Z" fill="#FFCC00"/>
+    <!-- Right flame -->
+    <path d="M340,512 C356,470 382,455 372,412 C362,369 334,360 334,360
+             C334,360 308,372 305,408 C302,444 322,466 340,512Z" fill="#EE4400" opacity="0.75"/>
+    <path d="M340,502 C352,474 372,460 364,424 C356,388 336,380 336,380
+             C336,380 316,388 313,420 C310,452 328,470 340,502Z" fill="#FF7700" opacity="0.6"/>
+    <!-- Far-right flame -->
+    <path d="M404,512 C416,478 436,466 429,436 C422,406 402,400 402,400
+             C402,400 382,407 380,432 C378,457 394,476 404,512Z" fill="#CC2800" opacity="0.55"/>
+  </g>
+
+  <!-- Charizard sprite — base64 embedded, no external URL needed -->
+  <image
+    href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgBAMAAAAQtmoLAAAALVBMVEUAAAAAAAAIQVIgc5RiYmKDMRjNUkHNzc3mQRDugynutFru3nv2pBD/1RD////8tlCXAAAAAXRSTlMAQObYZgAABLNJREFUWMPtmD1r5EYYx2eOyGypWfAkcsDYc9hwZdYfIl3QBiROgYBl0ARdwGCISRd8nQq72IAG5q5y4SJKHwj7Ba7Z3oVVGPLS+TPkeWak3dXbxttdcVN4kff56fk/r6tdQj6dj/NcbWk/uhpth4yyLNvOxdbA6EO2ZRg32XbE6Pp+cYWqgmeZBxB1WX4AwCn8Z9ij1WhR3htAPgMIAchuSoybpvkpcYJgs58oJ6ObmzLDuD2tgkjrfJgIfEcDsFg8ZNcAcG2POh3Sr/NIJ2RUQggL1ITGQRBq1R+ME+HtTMwPWQlRA8DGQohQ617C2ANAbhZliQCJZmB+cjI5flec9gmaMW4AcAE+EBijPRLFXY+DX+F2HAFI68P9lQVenhgiVd0MabAXhxA0ya7LB9NMS+DkWHUFoQMhvBwnorxvA7pdDCcVS4CMvn9NyFoMqKkdtXNmgcO8qvezAePbsQrWgFd5u+kqQLyyQGJkAlClqRN1KNYBEkofsWHAkUIcfWuA3AKJTxwlloBopQmBMDZQbq+B4EamAYRoRY0hIADdI13rQibhMEBRkYzFkY6Bq1zEUqwBzTTRMwRcEUGYR5KZVomtIhuEEM2oKwAa9gW8hRki1LMOaqAZNQJc7kbwT3hLYhE8UDepNJlXG9taDDxQWrvkhThku1hlBZ1XAQcUXo7dZt0OUxi3GSEvmAeTBEFDzibm1icTQsY9AM7nzKXM7AlmgJfgDf4egIQ24Jx5ZqKnLLWbhWHIk8mxZGMEwEULiO0KyqWsdhHHBB1gOYTfAxCvWlpSWhcaF4YghEs5TvqBN7/l6RqAnYriJRwfg2gCVKtCXaIUOeWWmbExvgMusC4dIJQ6fjKrkdBdQ0R6ZipeuRi3JPFEf/UPRg0LPgFaK3Nh+1ZCP45b25KGSZCqKUx/mMg6VRo/GxzU5JNx3J7RFGXLJEAJNaDzqQGgj/hpe5HBid+a268yBcrcShN3u6tbfZFxAMKlfeDVQEJ2enY9yzIey2QpSCVOCGKsJtpVNCPgIQZRlT0ky6c14HccROAcAHcnTOfzP60HmVBQb4B2jjylzwF4G7rEm89XBK+BpAVQLZlLX+/nPv1xviQsAEGrDkAoI0HydzAj9L0B5sbFboSATlMp3e5nnIxxprm1Ny6mWBvIh1J9QBhKxnwbQuUCP9klTkqvB2Zb4Mv5ygVPPC2ndq66AGQwgPq8XwNmF6lCobpXErQpYWQFoKZE5zw29m96gOk+lDNqADpMphdo3ymcJaAN9AowebrMGdrL26HHJa1WADYtk9isvYrMSXX+ewPQEreALAaAHZixogb+qHocHQwpAkB/V7u4s0AMAzjkwAKF8VEUS+BdcTv4iIhzX1TnLrUdu1cMOrCTvVcBt0uAkU2AjGtAVgDb8JiLbSb3aiA1bcc2PRebrRTvVQAQsrft1obIzO/UEIEp2UAbNQAfBra4C4pnANWWwwcBKMct/3+Aylo0PNYH5krONj7d80aUeJWmm6L+7OIyXNOALpTaBHzz9U8/NwHYSZsA9u/+BXObIZ1vAiij64Wl/Ifwl/PHLb6isafHp78utvlSt+9+/si2AahL3U+/GHyM5z/tOd8zbwTGEwAAAABJRU5ErkJggg=="
+    x="88" y="60" width="336" height="336"
+    style="image-rendering:pixelated"
+  />
+
+  <!-- Outer rings -->
+  <circle cx="256" cy="256" r="248" fill="none" stroke="#FF5500" stroke-width="5" opacity="0.9"/>
+  <circle cx="256" cy="256" r="242" fill="none" stroke="#FF9900" stroke-width="1.5" opacity="0.35"/>
+
+  <!-- POKEGAME label -->
+  <rect x="72" y="406" width="368" height="46" rx="10" fill="#0d0400" opacity="0.82"/>
+  <text x="256" y="439"
+        text-anchor="middle"
+        font-family="'Courier New', monospace"
+        font-weight="900"
+        font-size="30"
+        fill="#FF8800"
+        letter-spacing="4">POKEGAME</text>
+
+  <!-- Top shine -->
+  <ellipse cx="256" cy="110" rx="90" ry="25" fill="white" opacity="0.03"/>
+</svg>
