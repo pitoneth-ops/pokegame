@@ -450,6 +450,34 @@ def wallet_balance(wallet: str):
     return get_wallet_token_balance(wallet)
 
 
+@app.get("/wallet/debug/{wallet}")
+def wallet_debug(wallet: str):
+    """Raw RPC debug — shows what getTokenAccountsByOwner returns for this wallet."""
+    from solana_client import _rpc, TOKEN_MINT_STR, _TOKEN_2022_PROGRAM, _TOKEN_PROGRAM
+    results = {}
+    for prog in [_TOKEN_2022_PROGRAM, _TOKEN_PROGRAM]:
+        try:
+            resp = _rpc("getTokenAccountsByOwner", [
+                wallet, {"programId": prog}, {"encoding": "jsonParsed"}
+            ])
+            accounts = (resp.get("result") or {}).get("value") or []
+            results[prog] = {
+                "count": len(accounts),
+                "error": resp.get("error"),
+                "accounts": [
+                    {
+                        "pubkey": a.get("pubkey"),
+                        "mint":   a.get("account", {}).get("data", {}).get("parsed", {}).get("info", {}).get("mint"),
+                        "amount": a.get("account", {}).get("data", {}).get("parsed", {}).get("info", {}).get("tokenAmount", {}).get("uiAmount"),
+                    }
+                    for a in accounts
+                ],
+            }
+        except Exception as e:
+            results[prog] = {"error": str(e)}
+    return results
+
+
 @app.post("/player/{name}/deposit/verify")
 def deposit_verify(name: str, body: DepositVerifyBody, db: Session = Depends(get_db)):
     player = _get_player(name, db)

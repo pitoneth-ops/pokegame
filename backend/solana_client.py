@@ -88,35 +88,39 @@ def get_token_info() -> dict:
 def get_wallet_token_balance(wallet_str: str) -> dict:
     """
     Return on-chain token balance using getTokenAccountsByOwner.
-    Avoids Pubkey.from_string on the program ID (which can fail in solders).
+    Tries Token-2022 first, then falls back to regular SPL.
+    Avoids Pubkey.from_string on program IDs (can fail in some solders versions).
     """
-    prog_str = _get_token_program()
-    print(f"[solana] balance check | wallet={wallet_str[:8]}… | prog={prog_str[:8]}…")
-    try:
-        resp     = _rpc("getTokenAccountsByOwner", [
-            wallet_str,
-            {"programId": prog_str},
-            {"encoding": "jsonParsed"},
-        ])
-        accounts = (resp.get("result") or {}).get("value") or []
-        for acc in accounts:
-            try:
-                info = acc["account"]["data"]["parsed"]["info"]
-                if info.get("mint") != TOKEN_MINT_STR:
-                    continue
-                ta  = info["tokenAmount"]
-                bal = float(ta.get("uiAmount") or 0)
-                raw = int(ta.get("amount") or 0)
-                ata = acc.get("pubkey", "")
-                print(f"[solana] balance: {bal} | ata={ata[:8]}…")
-                return {"balance": bal, "raw": raw, "ata": ata, "token_program": prog_str}
-            except (KeyError, TypeError):
+    for prog_str in [_TOKEN_2022_PROGRAM, _TOKEN_PROGRAM]:
+        try:
+            resp = _rpc("getTokenAccountsByOwner", [
+                wallet_str,
+                {"programId": prog_str},
+                {"encoding": "jsonParsed"},
+            ])
+            if "error" in resp:
+                print(f"[solana] RPC error (prog={prog_str[:8]}…): {resp['error']}")
                 continue
-        print(f"[solana] balance: no account found for mint {TOKEN_MINT_STR[:8]}…")
-        return {"balance": 0.0, "raw": 0, "ata": "", "token_program": prog_str}
-    except Exception as e:
-        print(f"[solana] getTokenAccountsByOwner error for {wallet_str}: {e}")
-        return {"balance": 0.0, "raw": 0, "ata": "", "token_program": prog_str}
+            accounts = (resp.get("result") or {}).get("value") or []
+            print(f"[solana] prog={prog_str[:8]}… → {len(accounts)} accounts")
+            for acc in accounts:
+                try:
+                    info = acc["account"]["data"]["parsed"]["info"]
+                    if info.get("mint") != TOKEN_MINT_STR:
+                        continue
+                    ta  = info["tokenAmount"]
+                    bal = float(ta.get("uiAmount") or 0)
+                    raw = int(ta.get("amount") or 0)
+                    ata = acc.get("pubkey", "")
+                    print(f"[solana] FOUND balance={bal} ata={ata[:8]}… prog={prog_str[:8]}…")
+                    return {"balance": bal, "raw": raw, "ata": ata, "token_program": prog_str}
+                except (KeyError, TypeError) as ex:
+                    print(f"[solana] account parse error: {ex}")
+                    continue
+        except Exception as e:
+            print(f"[solana] getTokenAccountsByOwner failed (prog={prog_str[:8]}…): {e}")
+    print(f"[solana] no balance found for wallet={wallet_str[:8]}… mint={TOKEN_MINT_STR[:8]}…")
+    return {"balance": 0.0, "raw": 0, "ata": "", "token_program": _TOKEN_2022_PROGRAM}
 
 
 def verify_deposit_tx(signature: str, from_wallet: str) -> dict:
