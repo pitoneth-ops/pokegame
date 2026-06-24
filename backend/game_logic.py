@@ -649,13 +649,15 @@ def do_equip_from_bag(player, trainer, bag_index: int) -> dict:
     if len(equipped) >= max_slots:
         return {"error": f"Trainer already has {max_slots} Pokémon (level {cur_lv} allows {max_slots} slots — level up for more)"}
 
-    # Check type compatibility
+    # Check type compatibility (accept type1 or type2 match)
     trainer_type = getattr(trainer, "trainer_type", "Normal") or "Normal"
     if trainer_type != "Universal":
-        poke_data = POKEMON_DATA.get(entry["id"], {})
-        poke_type = poke_data.get("type1", "Normal")
-        if poke_type != trainer_type:
-            return {"error": f"{trainer_type} trainer cannot use {poke_type}-type Pokémon"}
+        poke_data  = POKEMON_DATA.get(entry["id"], {})
+        poke_type1 = poke_data.get("type1", "Normal")
+        poke_type2 = poke_data.get("type2")
+        if poke_type1 != trainer_type and poke_type2 != trainer_type:
+            types_str = f"{poke_type1}/{poke_type2}" if poke_type2 else poke_type1
+            return {"error": f"{trainer_type} trainer cannot use {types_str}-type Pokémon"}
 
     # Move from bag to trainer
     bag.pop(bag_index)
