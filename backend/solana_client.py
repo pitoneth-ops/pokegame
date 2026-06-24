@@ -102,21 +102,27 @@ def get_token_info() -> dict:
 
 def get_wallet_token_balance(wallet_str: str) -> dict:
     """Return on-chain token balance for wallet_str (server-side, no CORS issues)."""
-    ata_str = _get_ata(wallet_str, TOKEN_MINT_STR)
+    prog_str = _get_token_program()
+    ata_str  = _get_ata(wallet_str, TOKEN_MINT_STR, prog_str)
+    print(f"[solana] balance check | wallet={wallet_str[:8]}… | prog={prog_str[:8]}… | ata={ata_str[:8]}…")
     try:
         resp   = _rpc("getTokenAccountBalance", [ata_str])
         result = resp.get("result", {})
         val    = result.get("value") if result else None
         if not val:
-            return {"balance": 0.0, "raw": 0, "ata": ata_str}
+            print(f"[solana] balance: no value in response — {resp}")
+            return {"balance": 0.0, "raw": 0, "ata": ata_str, "token_program": prog_str}
+        bal = float(val.get("uiAmount") or 0)
+        print(f"[solana] balance: {bal}")
         return {
-            "balance": float(val.get("uiAmount") or 0),
-            "raw":     int(val.get("amount") or 0),
-            "ata":     ata_str,
+            "balance":       bal,
+            "raw":           int(val.get("amount") or 0),
+            "ata":           ata_str,
+            "token_program": prog_str,
         }
     except Exception as e:
         print(f"[solana] getTokenAccountBalance error for {wallet_str}: {e}")
-        return {"balance": 0.0, "raw": 0, "ata": ata_str}
+        return {"balance": 0.0, "raw": 0, "ata": ata_str, "token_program": prog_str}
 
 
 def verify_deposit_tx(signature: str, from_wallet: str) -> dict:

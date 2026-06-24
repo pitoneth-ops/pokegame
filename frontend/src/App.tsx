@@ -87,8 +87,14 @@ function Nav() {
     if (!connected || !publicKey) { setWalletBal(null); return; }
     let alive = true;
     getWalletBalance(publicKey.toBase58())
-      .then(b => { if (alive) setWalletBal(b.balance); })
-      .catch(() => { if (alive) setWalletBal(0); });
+      .then(b => {
+        console.log("[nav] balance response:", b);
+        if (alive) setWalletBal(b.balance);
+      })
+      .catch(err => {
+        console.error("[nav] balance fetch error:", err);
+        if (alive) setWalletBal(0);
+      });
     return () => { alive = false; };
   }, [connected, publicKey?.toBase58()]);
 
