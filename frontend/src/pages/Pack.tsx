@@ -5,7 +5,7 @@ import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, createTransferCheckedInstruction, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { useGameStore } from "../store";
-import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo, getWalletBalance, getPackPrices } from "../api";
+import { openPack, openTrainerPack, openPokemonPack, getPlayer, getWalletInfo, getWalletBalance, getPackPrices, getPackQuote } from "../api";
 import type { Trainer, PokemonPackResult, PackPrices } from "../api";
 import { TypeIcon } from "../components/Icons";
 
@@ -246,24 +246,21 @@ export default function Pack() {
     setPhase("signing");
 
     try {
-      const cost        = getCost(type);
-      const tokenMint   = new PublicKey(walletInfo.mint);
-      const treasury    = new PublicKey(walletInfo.treasury);
-      // SCAM / future $PKG token is Token-2022 — hardcode program ID
-      const tokenProg   = TOKEN_2022_PROGRAM_ID;
-      const playerAta   = await getAssociatedTokenAddress(tokenMint, publicKey, false, tokenProg);
-      const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury,  false, tokenProg);
-      const rawAmount   = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
+      // Fetch a price-locked quote (~200ms) before asking Phantom to sign
+      const quote     = await getPackQuote(type);
+      const tokenMint = new PublicKey(walletInfo.mint);
+      const treasury  = new PublicKey(walletInfo.treasury);
+      const tokenProg = TOKEN_2022_PROGRAM_ID;
+      const playerAta = await getAssociatedTokenAddress(tokenMint, publicKey, false, tokenProg);
+      const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury, false, tokenProg);
+      const rawAmount = BigInt(quote.token_amount) * (10n ** BigInt(walletInfo.decimals));
 
-      console.log("[pack] prog:", tokenProg.toBase58());
-      console.log("[pack] playerAta:", playerAta.toBase58());
-      console.log("[pack] treasuryAta:", treasuryAta.toBase58());
+      console.log("[pack] quote:", quote.quote_id, "amount:", quote.token_amount);
 
-      // Check on-chain balance via backend (avoids CORS, uses correct Token-2022 ATA)
+      // Check on-chain balance via backend
       const balResp = await getWalletBalance(publicKey.toBase58());
-      console.log("[pack] balance:", balResp.balance, "ata:", balResp.ata);
       if (balResp.raw < Number(rawAmount)) {
-        setError(`Saldo insuficiente: você tem ${balResp.balance.toFixed(2)} $PKG, precisa de ${fmtTokens(cost)}${prices?.oracle === "live" ? ` (~$${PACK_USD[type].toFixed(2)})` : ""}.`);
+        setError(`Saldo insuficiente: você tem ${balResp.balance.toFixed(2)} $PKG, precisa de ${fmtTokens(quote.token_amount)} (~$${PACK_USD[type].toFixed(2)}).`);
         setPhase("idle");
         return;
       }
@@ -274,7 +271,6 @@ export default function Pack() {
           rawAmount, walletInfo.decimals, [], tokenProg,
         ));
 
-      // Let wallet adapter fetch blockhash and sign internally
       const sig = await sendTransaction(tx, connection);
 
       setPhase("confirming");
@@ -288,19 +284,19 @@ export default function Pack() {
 
       const wallet = publicKey.toBase58();
       if (type === "combo") {
-        const res = await openPack(playerName, sig, wallet);
+        const res = await openPack(playerName, sig, wallet, quote.quote_id);
         setTrainer(res.trainer);
         const updated = await getPlayer(playerName);
         setPlayer(updated);
         setTimeout(() => setPhase("reveal_trainer"), 800);
       } else if (type === "trainer") {
-        const res = await openTrainerPack(playerName, sig, wallet);
+        const res = await openTrainerPack(playerName, sig, wallet, quote.quote_id);
         setTrainer(res.trainer);
         const updated = await getPlayer(playerName);
         setPlayer(updated);
         setTimeout(() => setPhase("reveal_trainer"), 800);
       } else {
-        const res = await openPokemonPack(playerName, sig, wallet);
+        const res = await openPokemonPack(playerName, sig, wallet, quote.quote_id);
         setPokemon(res);
         const updated = await getPlayer(playerName);
         setPlayer(updated);

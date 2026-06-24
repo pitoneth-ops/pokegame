@@ -1,3 +1,4 @@
+import uuid, time
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -79,7 +80,8 @@ class WithdrawBody(BaseModel):
 
 class PackPayBody(BaseModel):
     signature: str
-    wallet: str   # player's Solana public key
+    wallet: str
+    quote_id: str
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -173,26 +175,40 @@ def _verify_pack_payment(body: PackPayBody, cost: int):
 
 _PACK_FALLBACK = {"combo": COMBO_PACK_COST, "trainer": TRAINER_PACK_COST, "pokemon": POKEMON_PACK_COST}
 
+# In-memory quote store: quote_id → {amount, pack_key, expires}
+_quotes: dict = {}
 
-def _verify_pack_payment_usd(body: PackPayBody, pack_key: str):
-    from solana_client import verify_deposit_tx, get_token_price_usd
+
+def _cleanup_quotes():
+    now = time.time()
+    for qid in [k for k, v in list(_quotes.items()) if v["expires"] < now]:
+        _quotes.pop(qid, None)
+
+
+def _verify_pack_payment_quote(body: PackPayBody, pack_key: str):
+    from solana_client import verify_deposit_tx
+    _cleanup_quotes()
+    quote = _quotes.get(body.quote_id)
+    if not quote:
+        raise HTTPException(400, "quote not found — click the button again to get a fresh price")
+    if time.time() > quote["expires"]:
+        _quotes.pop(body.quote_id, None)
+        raise HTTPException(400, "quote expired — click the button again to get a fresh price")
+    if quote["pack_key"] != pack_key:
+        raise HTTPException(400, "quote mismatch")
+    _quotes.pop(body.quote_id)  # one-use only
     result = verify_deposit_tx(body.signature, body.wallet)
     if not result["ok"]:
         raise HTTPException(400, result["error"])
-    price = get_token_price_usd()
-    if price and price > 0:
-        min_tokens = max(1, int(PACK_PRICES_USD[pack_key] / price * 0.90))  # 10% slippage
-    else:
-        min_tokens = _PACK_FALLBACK[pack_key]
-    if result["amount"] < min_tokens:
-        raise HTTPException(400, f"insufficient payment: sent {result['amount']} $PKG, need at least {min_tokens}")
+    if result["amount"] < quote["amount"]:
+        raise HTTPException(400, f"sent {result['amount']} $PKG but quote requires {quote['amount']}")
 
 
 @app.post("/player/{name}/pack")
 def open_pack(name: str, body: PackPayBody, db: Session = Depends(get_db)):
     """Combo pack — paid with real SPL tokens from wallet."""
     player = _get_player(name, db)
-    _verify_pack_payment_usd(body, "combo")
+    _verify_pack_payment_quote(body, "combo")
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
     initial_pokemon                    = pick_initial_pokemon(trainer_type)
@@ -205,7 +221,7 @@ def open_pack(name: str, body: PackPayBody, db: Session = Depends(get_db)):
 def open_trainer_pack_endpoint(name: str, body: PackPayBody, db: Session = Depends(get_db)):
     """Trainer-only pack — paid with real SPL tokens from wallet."""
     player = _get_player(name, db)
-    _verify_pack_payment_usd(body, "trainer")
+    _verify_pack_payment_quote(body, "trainer")
     rarity                             = roll_trainer_rarity()
     char_type, char_name, trainer_type = pick_trainer_char(rarity)
     trainer = _create_trainer_row(player, db, rarity, "", char_type, char_name, trainer_type)
@@ -217,7 +233,7 @@ def open_trainer_pack_endpoint(name: str, body: PackPayBody, db: Session = Depen
 def open_pokemon_pack_endpoint(name: str, body: PackPayBody, db: Session = Depends(get_db)):
     """Pokémon-only pack — paid with real SPL tokens from wallet."""
     player = _get_player(name, db)
-    _verify_pack_payment_usd(body, "pokemon")
+    _verify_pack_payment_quote(body, "pokemon")
     result = open_pokemon_pack(player)
     if "error" in result:
         raise HTTPException(400, result["error"])
@@ -454,6 +470,19 @@ def use_stone(name: str, body: UseStoneBody, db: Session = Depends(get_db)):
 
 
 # ── Market / price oracle ─────────────────────────────────────────────────────
+
+@app.get("/market/quote/{pack_key}")
+def get_pack_quote(pack_key: str):
+    if pack_key not in PACK_PRICES_USD:
+        raise HTTPException(400, "invalid pack type")
+    _cleanup_quotes()
+    from solana_client import get_token_price_usd
+    price = get_token_price_usd()
+    amount = max(1, int(PACK_PRICES_USD[pack_key] / price)) if (price and price > 0) else _PACK_FALLBACK[pack_key]
+    qid = uuid.uuid4().hex[:16]
+    _quotes[qid] = {"amount": amount, "pack_key": pack_key, "expires": time.time() + 90}
+    return {"quote_id": qid, "token_amount": amount, "expires_in": 90}
+
 
 @app.get("/market/price")
 def market_price():

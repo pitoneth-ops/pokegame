@@ -196,14 +196,14 @@ export interface PokemonPackResult {
   };
 }
 
-export const openPack = (name: string, signature: string, wallet: string) =>
-  api.post<{ ok: boolean; tokens: number; trainer: Trainer }>(`/player/${name}/pack`, { signature, wallet }).then(r => r.data);
+export const openPack = (name: string, signature: string, wallet: string, quote_id: string) =>
+  api.post<{ ok: boolean; tokens: number; trainer: Trainer }>(`/player/${name}/pack`, { signature, wallet, quote_id }).then(r => r.data);
 
-export const openTrainerPack = (name: string, signature: string, wallet: string) =>
-  api.post<{ ok: boolean; tokens: number; trainer: Trainer }>(`/player/${name}/pack/trainer`, { signature, wallet }).then(r => r.data);
+export const openTrainerPack = (name: string, signature: string, wallet: string, quote_id: string) =>
+  api.post<{ ok: boolean; tokens: number; trainer: Trainer }>(`/player/${name}/pack/trainer`, { signature, wallet, quote_id }).then(r => r.data);
 
-export const openPokemonPack = (name: string, signature: string, wallet: string) =>
-  api.post<PokemonPackResult>(`/player/${name}/pack/pokemon`, { signature, wallet }).then(r => r.data);
+export const openPokemonPack = (name: string, signature: string, wallet: string, quote_id: string) =>
+  api.post<PokemonPackResult>(`/player/${name}/pack/pokemon`, { signature, wallet, quote_id }).then(r => r.data);
 
 export const swapTrainerType = (name: string, tid: number, new_type: string) =>
   api.post<{ ok: boolean; tokens: number; new_type: string }>(`/player/${name}/trainers/${tid}/swap-type`, { new_type }).then(r => r.data);
@@ -285,6 +285,9 @@ export interface PackPrices {
 
 export const getPackPrices = () =>
   api.get<PackPrices>("/market/price").then(r => r.data);
+
+export const getPackQuote = (pack_key: "combo" | "trainer" | "pokemon") =>
+  api.get<{ quote_id: string; token_amount: number; expires_in: number }>(`/market/quote/${pack_key}`).then(r => r.data);
 
 export const getWalletInfo = () =>
   api.get<{ mint: string; decimals: number; treasury: string | null; token_program: string }>("/wallet/info").then(r => r.data);
