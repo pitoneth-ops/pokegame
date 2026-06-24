@@ -577,21 +577,45 @@ LEVEL_UNLOCK_COSTS = {
 }
 
 # Token cost to expand bag by 5 slots (key = current bag_capacity)
-BAG_EXPAND_COSTS = {
-    10: 500,
-    15: 1000,
-    20: 2000,
-    25: 4000,
-}
+BAG_EXPAND_COSTS = {10: 500, 15: 1000, 20: 2000, 25: 4000}  # legacy fallback
 
-GYM_REWARD    = 1500
-ELITE4_REWARD = 10000
+GYM_REWARD    = 1500   # legacy fallback
+ELITE4_REWARD = 10000  # legacy fallback
 PACK_COST     = 100
 START_TOKENS  = 0
-
-# Fixed USD prices for packs (oracle converts to token amount at purchase time)
-PACK_PRICES_USD: dict = {"combo": 1.00, "trainer": 0.50, "pokemon": 0.40}
 BURN_COST     = 3  # trainers of same rarity to burn
+
+# ── All USD prices (oracle converts to tokens at runtime) ─────────────────────
+
+PACK_PRICES_USD: dict = {"combo": 7.00, "trainer": 3.00, "pokemon": 3.00}
+
+GYM_REWARDS_USD = [50.0, 75.0, 100.0, 150.0, 210.0, 300.0, 415.0, 500.0]  # gym 1-8
+
+ELITE4_REWARD_USD = 1000.0
+
+# Bag expand: $1 doubling each purchase
+BAG_EXPAND_COSTS_USD = {10: 1.0, 15: 2.0, 20: 4.0, 25: 8.0}
+
+# Level tier unlock: $3 doubling each unlock
+LEVEL_UNLOCK_COSTS_USD = {5: 3.0, 10: 6.0, 15: 12.0, 20: 24.0}
+
+# Burn 3 trainers of same rarity
+BURN_COSTS_USD = {"common": 3.0, "rare": 5.0, "epic": 10.0}
+
+# Backpack drops
+BACKPACK_DROPS_USD = [
+    {"rarity": "legendary", "rate": 0.005, "min_usd": 5.0,  "max_usd": 15.0},
+    {"rarity": "epic",      "rate": 0.02,  "min_usd": 1.0,  "max_usd": 3.0},
+    {"rarity": "common",    "rate": 0.05,  "min_usd": 0.5,  "max_usd": 1.0},
+]
+
+# Token bonus when a Pokémon drops from battle (by rarity rolled at drop time)
+POKEMON_DROP_REWARDS_USD = {
+    "common":    (0.20, 0.40),
+    "rare":      (0.60, 1.00),
+    "epic":      (1.00, 2.00),
+    "legendary": (3.00, 5.00),
+}
 
 # ── Kanto Routes (FireRed style, unlocked by badges) ─────────────────────────
 ROUTES = [

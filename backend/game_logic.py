@@ -13,7 +13,39 @@ from pokemon_data import (
     ROUTES, STONE_EVOLUTIONS, STONE_DATA,
     TRAINER_PACK_COST, POKEMON_PACK_COST, COMBO_PACK_COST,
     TYPE_SWAP_COST, POKEMON_PACK_POOLS,
+    GYM_REWARDS_USD, ELITE4_REWARD_USD,
+    BAG_EXPAND_COSTS_USD, LEVEL_UNLOCK_COSTS_USD,
+    BURN_COSTS_USD, BACKPACK_DROPS_USD, POKEMON_DROP_REWARDS_USD,
 )
+
+
+def _usd_to_tokens(usd: float) -> int:
+    """Convert USD amount to game tokens using oracle price (cached 60s)."""
+    try:
+        from solana_client import get_token_price_usd
+        price = get_token_price_usd()
+        if price and price > 0:
+            return max(1, round(usd / price))
+    except Exception:
+        pass
+    return max(1, round(usd * 1_000_000))  # fallback: assumes ~$0.000001/token
+
+
+# Rarity distribution for pokemon that drop in battle
+_POKEMON_DROP_RARITY = [
+    ("legendary", 0.03),
+    ("epic",      0.12),
+    ("rare",      0.25),
+    ("common",    1.00),
+]
+
+
+def _roll_pokemon_drop_rarity() -> str:
+    r = random.random()
+    for rarity, threshold in _POKEMON_DROP_RARITY:
+        if r < threshold:
+            return rarity
+    return "common"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -87,10 +119,10 @@ def award_xp(trainer, amount: int):
 
 
 def unlock_info(max_level_unlocked: int) -> tuple[int | None, int | None]:
-    """Next (target_max, cost) or (None, None) if capped."""
-    for cap, cost in LEVEL_UNLOCK_COSTS.items():
+    """Next (target_max, cost_tokens) or (None, None) if capped."""
+    for cap, usd in LEVEL_UNLOCK_COSTS_USD.items():
         if max_level_unlocked < cap:
-            return cap, cost
+            return cap, _usd_to_tokens(usd)
     return None, None
 
 
@@ -304,6 +336,13 @@ def _try_drop_to_bag(player, trainer, npc_id: int, route_id: int = 1) -> int | N
     new_lvl = random.randint(lvl_min, lvl_max)
     bag.append({"id": new_id, "level": new_lvl})
     player.pokemon_bag = serialize_entries(bag)
+
+    # Token bonus based on rolled rarity of the dropped pokemon
+    drop_rarity = _roll_pokemon_drop_rarity()
+    min_usd, max_usd = POKEMON_DROP_REWARDS_USD[drop_rarity]
+    bonus = _usd_to_tokens(random.uniform(min_usd, max_usd))
+    player.tokens += bonus
+
     return new_id
 
 
@@ -331,16 +370,10 @@ def _try_drop_stone(player, route: dict) -> str | None:
     return stone_name
 
 
-_BACKPACK_DROPS = [
-    {"rarity": "legendary", "rate": 0.005, "min": 5000,  "max": 15000},
-    {"rarity": "epic",      "rate": 0.02,  "min": 1000,  "max": 3000},
-    {"rarity": "common",    "rate": 0.05,  "min": 100,   "max": 1000},
-]
-
 def _try_drop_backpack(player) -> dict | None:
-    for bp in _BACKPACK_DROPS:
+    for bp in BACKPACK_DROPS_USD:
         if random.random() < bp["rate"]:
-            tokens_found = random.randint(bp["min"], bp["max"])
+            tokens_found = _usd_to_tokens(random.uniform(bp["min_usd"], bp["max_usd"]))
             player.tokens += tokens_found
             return {"rarity": bp["rarity"], "tokens": tokens_found}
     return None
@@ -536,8 +569,10 @@ def do_gym_battle(player, trainer) -> dict:
 
     player.gym_passes -= 1
     won = random.random() < win_rate
+    gym_reward_usd = GYM_REWARDS_USD[gym_idx] if gym_idx < len(GYM_REWARDS_USD) else GYM_REWARDS_USD[-1]
+    gym_reward_tokens = _usd_to_tokens(gym_reward_usd) if won else 0
     if won:
-        player.tokens   += gym["reward"]
+        player.tokens   += gym_reward_tokens
         player.gym_wins += 1
         player.wins     += 1
         if player.badges < 8:
@@ -554,7 +589,7 @@ def do_gym_battle(player, trainer) -> dict:
 
     return {
         "won":              won,
-        "reward":           gym["reward"] if won else 0,
+        "reward":           gym_reward_tokens,
         "tokens":           player.tokens,
         "gym_wins":         player.gym_wins,
         "badges":           player.badges,
@@ -583,14 +618,15 @@ def do_elite4_battle(player, trainer) -> dict:
     win_rate     = max(0.10, min(0.70, avg * 0.8 + 0.10))
 
     won = random.random() < win_rate
+    elite4_reward_tokens = _usd_to_tokens(ELITE4_REWARD_USD) if won else 0
     if won:
-        player.tokens      += ELITE4_REWARD
+        player.tokens      += elite4_reward_tokens
         player.elite4_wins += 1
         player.badges       = 0
 
     return {
         "won":          won,
-        "reward":       ELITE4_REWARD if won else 0,
+        "reward":       elite4_reward_tokens,
         "tokens":       player.tokens,
         "elite4_wins":  player.elite4_wins,
         "badges":       player.badges,
@@ -666,11 +702,12 @@ def do_release_from_bag(player, bag_index: int) -> dict:
 
 def do_expand_bag(player) -> dict:
     cap = player.bag_capacity or 10
-    cost = BAG_EXPAND_COSTS.get(cap)
-    if cost is None:
+    usd = BAG_EXPAND_COSTS_USD.get(cap)
+    if usd is None:
         return {"error": "box is already at maximum size"}
+    cost = _usd_to_tokens(usd)
     if (player.tokens or 0) < cost:
-        return {"error": f"not enough tokens (need {cost})"}
+        return {"error": f"not enough tokens (need {cost} $PKG ≈ ${usd:.2f})"}
     player.tokens       -= cost
     player.bag_capacity  = cap + 5
     return {"ok": True, "bag_capacity": player.bag_capacity, "tokens": player.tokens}
@@ -707,13 +744,17 @@ def do_burn(player, rarity: str, trainers: list) -> dict:
     idx = RARITY_ORDER.index(rarity)
     if idx >= len(RARITY_ORDER) - 1:
         return {"error": "Legendary trainers cannot be burned"}
-    all_of_rarity  = [t for t in trainers if t.rarity == rarity]
-    # Only burn trainers with NO Pokémon equipped
-    candidates     = [t for t in all_of_rarity if not (t.pokemon_ids or "").strip()]
+    all_of_rarity = [t for t in trainers if t.rarity == rarity]
+    candidates    = [t for t in all_of_rarity if not (t.pokemon_ids or "").strip()]
     if len(all_of_rarity) < BURN_COST:
         return {"error": f"Need {BURN_COST} {rarity} trainers (you have {len(all_of_rarity)})"}
     if len(candidates) < BURN_COST:
         return {"error": f"Remove all Pokémon from at least {BURN_COST} {rarity} trainers first (empty: {len(candidates)}/{BURN_COST})"}
+    burn_usd  = BURN_COSTS_USD.get(rarity, 3.0)
+    burn_cost = _usd_to_tokens(burn_usd)
+    if (player.tokens or 0) < burn_cost:
+        return {"error": f"Not enough tokens to burn (need {burn_cost} $PKG ≈ ${burn_usd:.0f})"}
+    player.tokens -= burn_cost
     next_rarity = RARITY_ORDER[idx + 1]
     return {"burn_ids": [t.id for t in candidates[:BURN_COST]], "next_rarity": next_rarity}
 
