@@ -230,10 +230,22 @@ export default function Pack() {
       const cost        = PACK_COSTS[type];
       const tokenMint   = new PublicKey(walletInfo.mint);
       const treasury    = new PublicKey(walletInfo.treasury);
-      const tokenProg   = new PublicKey(walletInfo.token_program ?? TOKEN_PROGRAM_ID.toBase58());
-      const playerAta   = await getAssociatedTokenAddress(tokenMint, publicKey,  false, tokenProg);
-      const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury,   false, tokenProg);
+      const tokenProg   = new PublicKey(walletInfo.token_program || TOKEN_PROGRAM_ID.toBase58());
+      const playerAta   = await getAssociatedTokenAddress(tokenMint, publicKey, false, tokenProg);
+      const treasuryAta = await getAssociatedTokenAddress(tokenMint, treasury,  false, tokenProg);
       const rawAmount   = BigInt(cost) * (10n ** BigInt(walletInfo.decimals));
+
+      console.log("[pack] prog:", tokenProg.toBase58());
+      console.log("[pack] playerAta:", playerAta.toBase58());
+      console.log("[pack] treasuryAta:", treasuryAta.toBase58());
+
+      // Verify source ATA exists before submitting
+      const playerAtaInfo = await connection.getAccountInfo(playerAta);
+      if (!playerAtaInfo) {
+        setError("Sua conta de token não existe. Certifique-se de ter recebido SCAM nesta wallet ao menos uma vez.");
+        setPhase("idle");
+        return;
+      }
 
       const tx = new Transaction()
         .add(createTransferCheckedInstruction(
@@ -245,7 +257,12 @@ export default function Pack() {
       const sig = await sendTransaction(tx, connection);
 
       setPhase("confirming");
-      await connection.confirmTransaction(sig, "confirmed");
+      const conf = await connection.confirmTransaction(sig, "confirmed");
+      if (conf.value.err) {
+        setError(`Transaction failed on-chain: ${JSON.stringify(conf.value.err)}`);
+        setPhase("idle");
+        return;
+      }
       setPhase("opening");
 
       const wallet = publicKey.toBase58();
