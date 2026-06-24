@@ -12,7 +12,7 @@ import App from "./App";
 import "./index.css";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const endpoint = (import.meta as any).env?.VITE_SOLANA_RPC_URL ?? "https://rpc.ankr.com/solana";
+const endpoint = (import.meta as any).env?.VITE_SOLANA_RPC_URL ?? "https://lb.drpc.live/solana/An6mizDna0g2rZjqFdDX1KlA_FSOXTcR8beSIqM_iWcm";
 const wallets = [
   new PhantomWalletAdapter(),
   new SolflareWalletAdapter(),
