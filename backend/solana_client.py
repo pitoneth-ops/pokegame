@@ -14,8 +14,8 @@ TOKEN_DECIMALS = int(os.getenv("TOKEN_DECIMALS", "6"))
 RPC_URL        = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
 
 _TOKEN_PROGRAM      = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-_TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEo1SUEoCYuW2vqayer8mPpWt3tKib"
-_ASSOC_PROGRAM      = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bGi"
+_TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+_ASSOC_PROGRAM      = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 
 _cached_token_program: str | None = None
 
